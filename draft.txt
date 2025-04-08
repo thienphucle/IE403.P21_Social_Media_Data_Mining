@@ -1,0 +1,187 @@
+
+
+'''
+async def scrape_feed(num_scrolls=10):
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(
+            headless=False,
+            slow_mo=50,
+            executable_path=CHROME_PATH
+        )
+        context = await browser.new_context()
+        page = await context.new_page()
+
+        await page.goto("https://www.tiktok.com/vi-VN/", timeout=60000)
+        print("Đang chờ feed load...")
+        await page.wait_for_selector('article[data-e2e="recommend-list-item-container"]', timeout=20000)
+
+        results = []
+        video_selector = 'article[data-e2e="recommend-list-item-container"]'
+        start_time = time.time()
+
+        for i in range(num_scrolls):
+            print(f"\nScroll #{i+1}")
+
+            await page.wait_for_timeout(2000)
+            video_cards = await page.query_selector_all(video_selector)
+
+            if len(video_cards) <= i:
+                print(f"Không tìm thấy video thứ {i+1}, kết thúc sớm.")
+                break
+
+            video = video_cards[i]
+
+            
+
+            try:
+                # Crawl info
+                username = await video.query_selector('h3[data-e2e="video-author-uniqueid"]')
+                likes = await video.query_selector('strong[data-e2e="like-count"]')
+                comments = await video.query_selector('strong[data-e2e="comment-count"]')
+                shares = await video.query_selector('strong[data-e2e="share-count"]')
+                undefined = await video.query_selector('strong[data-e2e="undefined-count"]')
+                caption_elem = await video.query_selector('span[data-e2e="new-desc-span"]')
+
+                username = await username.text_content() if username else ""
+                likes = await likes.text_content() if likes else ""
+                comments = await comments.text_content() if comments else ""
+                shares = await shares.text_content() if shares else ""
+                undefined = await undefined.text_content() if undefined else ""
+                caption = await caption_elem.text_content() if caption_elem else ""
+
+                hashtags = []
+                hashtag_links = await video.query_selector_all('a[data-e2e="search-common-link"]')
+                for tag in hashtag_links:
+                    href = await tag.get_attribute("href")
+                    if href and "/tag/" in href:
+                        hashtag = href.split("/tag/")[-1]
+                        hashtags.append(hashtag)
+
+                video_id = None
+                video_url = None
+                video_tag = await page.query_selector('div.tiktok-web-player video')
+                video_wrapper = await page.query_selector('div.tiktok-web-player')
+
+                if video_wrapper:
+                    wrapper_id = await video_wrapper.get_attribute('id')
+                    if wrapper_id:
+                        video_id = wrapper_id.split('-')[-1]
+                if video_tag:
+                    video_url = await video_tag.get_attribute('src')
+
+                # Âm thanh
+                sound_id = ""
+                uses_sound_count = ""
+                music_href = await video.query_selector('a[data-e2e="video-music"]')
+                if music_href:
+                    href = await music_href.get_attribute("href")
+                    if href:
+                        music_url = f"https://www.tiktok.com{href}"
+                        sound_page = await context.new_page()
+                        await sound_page.goto(music_url, timeout=20000)
+                        await sound_page.wait_for_timeout(2000)
+
+                        if "music" in href:
+                            sound_id = href.split("-")[-1]
+
+                        try:
+                            uses = await sound_page.query_selector('strong[data-e2e="music-count"]')
+                            if uses:
+                                uses_sound_count = await uses.text_content()
+                        except:
+                            pass
+
+                        await sound_page.close()
+
+                results.append({
+                    "username": username.strip(),
+                    "caption": caption.strip(),
+                    "likes": likes.strip(),
+                    "comments": comments.strip(),
+                    "shares": shares.strip(),
+                    "undefined": undefined.strip(),
+                    "video_url": video_url.strip(),
+                    "video_id": video_id.strip(),
+                    "sound_id": sound_id.strip(),
+                    "uses_sound_count": uses_sound_count.strip(),
+                    "hashtags": ", ".join(hashtags)
+                })
+
+                print(f"Đã thu thập video #{i+1} của @{username}")
+
+            except Exception as e:
+                print(f"Bỏ qua video #{i+1} do lỗi:", e)
+
+            # Cuộn đến video tiếp theo
+            try:
+                next_button = await page.query_selector('button.TUXButton--secondary')
+                if next_button:
+                    await next_button.click()
+                    await page.wait_for_timeout(3000)
+                else:
+                    print("Không tìm thấy nút next video.")
+            except Exception as e:
+                print("Lỗi khi click nút next video:", e)
+
+        await browser.close()
+        end_time = time.time()
+        print(f"\nHoàn tất sau {round(end_time - start_time, 2)} giây.")
+        return results
+
+
+def save_to_csv(data, filename="tiktok_feed.csv"):
+    with open(filename, mode="w", newline='', encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=[
+            "username", "caption", "likes", "comments", "shares", "undefined",
+            "video_url", "video_id", "sound_id", "uses_sound_count", "hashtags"
+        ])
+        writer.writeheader()
+        writer.writerows(data)
+    print(f"Đã lưu {len(data)} video vào file {filename}")
+
+if __name__ == "__main__":
+    data = asyncio.run(scrape_feed(num_scrolls=5))
+    save_to_csv(data)
+
+'''
+
+
+
+
+
+# Cuộn xuống video tiếp theo bằng click nút hoặc gesture
+            try:
+                next_button_selector = 'aside button.TUXButton--secondary'
+                next_button = await page.query_selector(next_button_selector)
+
+                # Nếu có nút, đợi tối đa 10s cho đến khi nó được bật
+                if next_button:
+                    for _ in range(20):
+                        is_disabled = await next_button.get_attribute("aria-disabled")
+                        if is_disabled == "false":
+                            await next_button.click()
+                            await page.wait_for_timeout(3000)
+                            break
+                        else:
+                            is_disabled == "true"
+                        await page.wait_for_timeout(500)
+                    else:
+                        print("Nút next không khả dụng, fallback sang gesture.")
+                        not next_button
+
+                # Nếu không có nút hoặc nút không khả dụng, dùng gesture kéo chuột
+                if not next_button or is_disabled != "false":
+                    bounding_box = await current_video.bounding_box()
+                    if bounding_box:
+                        center_x = bounding_box['x'] + bounding_box['width'] / 2
+                        start_y = bounding_box['y'] + bounding_box['height'] / 2
+                        end_y = start_y + 300
+                        await page.mouse.move(center_x, start_y)
+                        await page.mouse.down()
+                        await page.mouse.move(center_x, end_y)
+                        await page.mouse.up()
+                        await page.wait_for_timeout(3000)
+                    else:
+                        print("Không tìm được vị trí video để cuộn.")
+            except Exception as e:
+                print("Lỗi khi chuyển sang video tiếp theo:", e)
