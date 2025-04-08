@@ -1,11 +1,46 @@
 import asyncio
 import csv
 import time
+import datetime
 from playwright.async_api import async_playwright
 
 CHROME_PATH = "C:\Program Files\Google\Chrome\Application\chrome.exe"
 
+def safe_strip(value):
+    return value.strip() if value else ""
 
+def get_post_time(video_id: str) -> str:
+    try:
+        video_id_int = int(video_id)
+        binary = format(video_id_int, '064b')  # ensure 64-bit
+        timestamp_bin = binary[:32]  # first 32 bits
+        timestamp_int = int(timestamp_bin, 2)
+        post_time = datetime.datetime.utcfromtimestamp(timestamp_int)
+        return post_time.strftime('%Y-%m-%d %H:%M:%S')
+    except Exception as e:
+        return f"Lỗi: {e}"
+
+async def get_video_views(context, username, target_video_id):
+    page = await context.new_page()
+    try:
+        await page.goto(f"https://www.tiktok.com/@{username}", timeout=30000)
+        await page.wait_for_selector('div[data-e2e="user-post-item"]', timeout=20000)
+
+        video_cards = await page.query_selector_all('div[data-e2e="user-post-item"]')
+        for card in video_cards:
+            link_tag = await card.query_selector("a")
+            video_url = await link_tag.get_attribute("href") if link_tag else ""
+            if target_video_id in video_url:
+                views_elem = await card.query_selector('strong[data-e2e="video-views"]')
+                views = safe_strip(await views_elem.text_content()) if views_elem else ""
+                return views
+    except Exception as e:
+        print(f"Không thể lấy view từ @{username}: {e}")
+    finally:
+        await page.close() 
+    return ""
+
+# Main crawler
 async def scrape_feed(num_scrolls=10):
     async with async_playwright() as p:
         browser = await p.chromium.launch(
@@ -22,7 +57,7 @@ async def scrape_feed(num_scrolls=10):
 
         results = []
         start_time = time.time()
-        
+
         for i in range(num_scrolls):
             print(f"\nScroll #{i+1}")
             await page.wait_for_timeout(2000)
@@ -35,22 +70,20 @@ async def scrape_feed(num_scrolls=10):
                 break
 
             try:
-                def safe_strip(value):
-                    return value.strip() if value else ""
+                scrape_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
-                # Crawl info
-                username = await current_video.query_selector('h3[data-e2e="video-author-uniqueid"]')
-                likes = await current_video.query_selector('strong[data-e2e="like-count"]')
-                comments = await current_video.query_selector('strong[data-e2e="comment-count"]')
-                shares = await current_video.query_selector('strong[data-e2e="share-count"]')
-                undefined = await current_video.query_selector('strong[data-e2e="undefined-count"]')
+                username_elem = await current_video.query_selector('h3[data-e2e="video-author-uniqueid"]')
+                likes_elem = await current_video.query_selector('strong[data-e2e="like-count"]')
+                comments_elem = await current_video.query_selector('strong[data-e2e="comment-count"]')
+                shares_elem = await current_video.query_selector('strong[data-e2e="share-count"]')
+                undefined_elem = await current_video.query_selector('strong[data-e2e="undefined-count"]')
                 caption_elem = await current_video.query_selector('span[data-e2e="new-desc-span"]')
 
-                username = safe_strip(await username.text_content() if username else "")
-                likes = safe_strip(await likes.text_content() if likes else "")
-                comments = safe_strip(await comments.text_content() if comments else "")
-                shares = safe_strip(await shares.text_content() if shares else "")
-                undefined = safe_strip(await undefined.text_content() if undefined else "")
+                username = safe_strip(await username_elem.text_content() if username_elem else "")
+                likes = safe_strip(await likes_elem.text_content() if likes_elem else "")
+                comments = safe_strip(await comments_elem.text_content() if comments_elem else "")
+                shares = safe_strip(await shares_elem.text_content() if shares_elem else "")
+                undefined = safe_strip(await undefined_elem.text_content() if undefined_elem else "")
                 caption = safe_strip(await caption_elem.text_content() if caption_elem else "")
 
                 hashtags = []
@@ -68,7 +101,10 @@ async def scrape_feed(num_scrolls=10):
                         video_id = wrapper_id.split('-')[-1]
                 video_url = f"https://www.tiktok.com/@{username}/video/{video_id}" if username and video_id else ""
 
-                # Âm thanh
+                views = await get_video_views(context, username, video_id)
+
+                post_time = get_post_time(video_id)
+
                 sound_id = ""
                 sound_title = ""
                 uses_sound_count = ""
@@ -83,27 +119,27 @@ async def scrape_feed(num_scrolls=10):
                         await sound_page.wait_for_timeout(2000)
 
                         try:
-                            # ID âm thanh từ URL
                             if "music" in href:
                                 sound_id = href.split("-")[-1]
 
-                            # Tiêu đề nhạc
                             music_title_elem = await sound_page.query_selector('h1[data-e2e="music-title"]')
                             if music_title_elem:
                                 sound_title = safe_strip(await music_title_elem.text_content())
 
-                            # Lượt sử dụng nhạc
                             uses_elem = await sound_page.query_selector('h2[data-e2e="music-video-count"] strong')
                             if uses_elem:
                                 uses_sound_count = safe_strip(await uses_elem.text_content())
                         except Exception as e:
                             print("Lỗi khi trích xuất thông tin âm thanh:", e)
-
                         await sound_page.close()
 
+                # Add to results
                 results.append({
                     "username": username,
                     "caption": caption,
+                    "post_time": post_time,
+                    "scrape_time": scrape_time,
+                    "views": views,
                     "likes": likes,
                     "comments": comments,
                     "shares": shares,
@@ -121,7 +157,6 @@ async def scrape_feed(num_scrolls=10):
             except Exception as e:
                 print(f"Bỏ qua video #{i+1} do lỗi:", e)
 
-            # scrollIntoView
             try:
                 next_index = i + 1
                 next_selector = f'article[data-scroll-index="{next_index}"]'
@@ -131,7 +166,7 @@ async def scrape_feed(num_scrolls=10):
                     await next_video.scroll_into_view_if_needed()
                     await page.wait_for_timeout(3000)
                 else:
-                    print(f"Không tìm thấy video tiếp theo với data-scroll-index={next_index}")
+                    print(f"Không tìm thấy video tiếp theo {next_index}")
             except Exception as e:
                 print("Lỗi khi cuộn đến video tiếp theo:", e)
 
@@ -140,22 +175,17 @@ async def scrape_feed(num_scrolls=10):
         print(f"\nTổng thời gian:  {round(end_time - start_time, 2)} giây.")
         return results
 
-
 def save_to_csv(data, filename="tiktok_feed.csv"):
     with open(filename, mode="w", newline='', encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=[
-            "username", "caption", "likes", "comments", "shares", "undefined", 
-            "hashtags", "sound_id", "sound_title", "uses_sound_count", "video_id", "video_url"
+            "username", "caption", "post_time", "scrape_time", "views", "likes", "comments", "shares", "undefined",
+            "hashtags", "sound_id", "sound_title", "uses_sound_count",
+            "video_id", "video_url"
         ])
         writer.writeheader()
         writer.writerows(data)
-    print(f"Đã lưu {len(data)} video vào file {filename}")
-
+    print(f"\nĐã lưu {len(data)} video vào file {filename}")
 
 if __name__ == "__main__":
-    data = asyncio.run(scrape_feed(num_scrolls=3))
+    data = asyncio.run(scrape_feed(num_scrolls=100))
     save_to_csv(data)
-
-
-
-
