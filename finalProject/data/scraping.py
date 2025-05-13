@@ -106,8 +106,9 @@ async def scrape_feed(num_scrolls=10):
                 if duration_elem:
                     duration_text = await duration_elem.text_content()
                     if "/" in duration_text:
-                        duration = duration_text.split("/")[-1].strip()
-                    duration = duration_text.strip()
+                        duration = duration_text.split('/')[-1].strip()
+                    else:
+                        duration = duration_text.strip()
                 
                 hashtags = []
                 hashtag_links = await current_video.query_selector_all('a[data-e2e="search-common-link"]')
@@ -131,6 +132,8 @@ async def scrape_feed(num_scrolls=10):
                 sound_id = ""
                 sound_title = ""
                 uses_sound_count = ""
+                music_author = ""
+                music_originality = ""
 
                 music_href = await current_video.query_selector('a[data-e2e="video-music"]')
                 if music_href:
@@ -154,13 +157,20 @@ async def scrape_feed(num_scrolls=10):
                                 uses_sound_count = safe_strip(await uses_elem.text_content())
 
                             music_author_elem = await sound_page.query_selector('h2[data-e2e="music-creator"] a')
-                            music_author = safe_strip(await music_author_elem.text_content()) if music_author_elem else ""
+                            if music_author_elem:
+                                music_author = safe_strip(await music_author_elem.text_content())
 
                             music_originality = "true" if username.lower() == music_author.lstrip('@').lower() else "false"
 
                         except Exception as e:
                             print("Lỗi khi trích xuất thông tin âm thanh:", e)
                         await sound_page.close()
+                else:
+                    music_text_div = await current_video.query_selector('div[class*="DivMusicText"]')
+                    if music_text_div:
+                        music_text = await music_text_div.text_content()
+                        if music_text:
+                            sound_title = safe_strip(music_text)
 
                 # Add to results
                 results.append({
@@ -175,12 +185,12 @@ async def scrape_feed(num_scrolls=10):
                     "vid_nlike": likes,
                     "vid_ncomment": comments,
                     "vid_nshare": shares,
-                    "vid_nundefined": undefined,
+                    "vid_nsave": undefined,
                     "vid_hashtags": ", ".join(hashtags),
                     "vid_url": safe_strip(video_url),
                     "music_id": sound_id,
                     "music_title": sound_title,
-                    "music_usedCount": uses_sound_count,
+                    "music_nused": uses_sound_count,
                     "music_authorName": music_author,
                     "music_originality":  music_originality,
                 })
@@ -207,12 +217,12 @@ async def scrape_feed(num_scrolls=10):
         print(f"\nTổng thời gian:  {round(end_time - start_time, 2)} giây.")
         return results
 
-def save_to_csv(data, filename="tiktok_feed.csv"):
+def save_to_csv(data, filename='finalProject/data/tiktok_feed.csv'):
     with open(filename, mode="w", newline='', encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=[
             "user_name", "user_followers", "vid_id", "vid_caption", "vid_postTime", "vid_scrapeTime", 
-            "vid_duration", "vid_nview", "vid_nlike", "vid_ncomment", "vid_nshare", "vid_nundefined",
-            "vid_hashtags", "vid_url", "music_id", "music_title", "music_usedCount", "music_authorName", "music_originality"
+            "vid_duration", "vid_nview", "vid_nlike", "vid_ncomment", "vid_nshare", "vid_nsave",
+            "vid_hashtags", "vid_url", "music_id", "music_title", "music_nused", "music_authorName", "music_originality"
         ])
         writer.writeheader()
         writer.writerows(data)
