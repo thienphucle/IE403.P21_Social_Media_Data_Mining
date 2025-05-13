@@ -112,8 +112,8 @@ async def scrape_feed(num_scrolls=10):
                     "sound_id": sound_id,
                     "sound_title": sound_title,
                     "uses_sound_count": uses_sound_count,
-                    "video_id": safe_strip(video_id),
-                    "video_url": safe_strip(video_url),
+                    "vid_id": safe_strip(video_id),
+                    "vid_url": safe_strip(video_url),
                 })
 
                 print(f"Đã thu thập video #{i+1} của @{username}")

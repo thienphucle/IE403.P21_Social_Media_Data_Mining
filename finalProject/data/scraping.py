@@ -20,6 +20,21 @@ def get_post_time(video_id: str) -> str:
     except Exception as e:
         return f"Lỗi: {e}"
 
+async def get_user_followers(context, username):
+    page = await context.new_page()
+    try:
+        await page.goto(f"https://www.tiktok.com/@{username}", timeout=30000)
+        await page.wait_for_selector('strong[data-e2e="followers-count"]', timeout=20000)
+        follower_elem = await page.query_selector('strong[data-e2e="followers-count"]')
+        if follower_elem:
+            followers = safe_strip(await follower_elem.text_content())
+            return followers
+    except Exception as e:
+        print(f"Lỗi khi lấy số follower của @{username}: {e}")
+    finally:
+        await page.close()
+    return ""
+
 async def get_video_views(context, username, target_video_id):
     page = await context.new_page()
     try:
@@ -78,7 +93,7 @@ async def scrape_feed(num_scrolls=10):
                 shares_elem = await current_video.query_selector('strong[data-e2e="share-count"]')
                 undefined_elem = await current_video.query_selector('strong[data-e2e="undefined-count"]')
                 caption_elem = await current_video.query_selector('span[data-e2e="new-desc-span"]')
-
+                
                 username = safe_strip(await username_elem.text_content() if username_elem else "")
                 likes = safe_strip(await likes_elem.text_content() if likes_elem else "")
                 comments = safe_strip(await comments_elem.text_content() if comments_elem else "")
@@ -86,6 +101,14 @@ async def scrape_feed(num_scrolls=10):
                 undefined = safe_strip(await undefined_elem.text_content() if undefined_elem else "")
                 caption = safe_strip(await caption_elem.text_content() if caption_elem else "")
 
+                duration = ""
+                duration_elem = await current_video.query_selector('p[class*="StyledTimeDisplayText"]')
+                if duration_elem:
+                    duration_text = await duration_elem.text_content()
+                    if "/" in duration_text:
+                        duration = duration_text.split("/")[-1].strip()
+                    duration = duration_text.strip()
+                
                 hashtags = []
                 hashtag_links = await current_video.query_selector_all('a[data-e2e="search-common-link"]')
                 for tag in hashtag_links:
@@ -102,7 +125,7 @@ async def scrape_feed(num_scrolls=10):
                 video_url = f"https://www.tiktok.com/@{username}/video/{video_id}" if username and video_id else ""
 
                 views = await get_video_views(context, username, video_id)
-
+                followers = await get_user_followers(context, username)
                 post_time = get_post_time(video_id)
 
                 sound_id = ""
@@ -129,29 +152,38 @@ async def scrape_feed(num_scrolls=10):
                             uses_elem = await sound_page.query_selector('h2[data-e2e="music-video-count"] strong')
                             if uses_elem:
                                 uses_sound_count = safe_strip(await uses_elem.text_content())
+
+                            music_author_elem = await sound_page.query_selector('h2[data-e2e="music-creator"] a')
+                            music_author = safe_strip(await music_author_elem.text_content()) if music_author_elem else ""
+
+                            music_originality = "true" if username.lower() == music_author.lstrip('@').lower() else "false"
+
                         except Exception as e:
                             print("Lỗi khi trích xuất thông tin âm thanh:", e)
                         await sound_page.close()
 
                 # Add to results
                 results.append({
-                    "username": username,
-                    "caption": caption,
-                    "post_time": post_time,
-                    "scrape_time": scrape_time,
-                    "views": views,
-                    "likes": likes,
-                    "comments": comments,
-                    "shares": shares,
-                    "undefined": undefined,
-                    "hashtags": ", ".join(hashtags),
-                    "sound_id": sound_id,
-                    "sound_title": sound_title,
-                    "uses_sound_count": uses_sound_count,
-                    "video_id": safe_strip(video_id),
-                    "video_url": safe_strip(video_url),
+                    "user_name": username,
+                    "user_followers": followers,
+                    "vid_id": safe_strip(video_id),
+                    "vid_caption": caption,
+                    "vid_postTime": post_time,
+                    "vid_scrapeTime": scrape_time,
+                    "vid_duration": duration,
+                    "vid_nview": views,
+                    "vid_nlike": likes,
+                    "vid_ncomment": comments,
+                    "vid_nshare": shares,
+                    "vid_nundefined": undefined,
+                    "vid_hashtags": ", ".join(hashtags),
+                    "vid_url": safe_strip(video_url),
+                    "music_id": sound_id,
+                    "music_title": sound_title,
+                    "music_usedCount": uses_sound_count,
+                    "music_authorName": music_author,
+                    "music_originality":  music_originality,
                 })
-
                 print(f"Đã thu thập video #{i+1} của @{username}")
 
             except Exception as e:
@@ -178,14 +210,14 @@ async def scrape_feed(num_scrolls=10):
 def save_to_csv(data, filename="tiktok_feed.csv"):
     with open(filename, mode="w", newline='', encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=[
-            "username", "caption", "post_time", "scrape_time", "views", "likes", "comments", "shares", "undefined",
-            "hashtags", "sound_id", "sound_title", "uses_sound_count",
-            "video_id", "video_url"
+            "user_name", "user_followers", "vid_id", "vid_caption", "vid_postTime", "vid_scrapeTime", 
+            "vid_duration", "vid_nview", "vid_nlike", "vid_ncomment", "vid_nshare", "vid_nundefined",
+            "vid_hashtags", "vid_url", "music_id", "music_title", "music_usedCount", "music_authorName", "music_originality"
         ])
         writer.writeheader()
         writer.writerows(data)
     print(f"\nĐã lưu {len(data)} video vào file {filename}")
 
 if __name__ == "__main__":
-    data = asyncio.run(scrape_feed(num_scrolls=100))
+    data = asyncio.run(scrape_feed(num_scrolls=5))
     save_to_csv(data)
