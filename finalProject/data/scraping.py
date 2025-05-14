@@ -101,6 +101,9 @@ async def scrape_feed(num_scrolls=10):
                 undefined = safe_strip(await undefined_elem.text_content() if undefined_elem else "")
                 caption = safe_strip(await caption_elem.text_content() if caption_elem else "")
 
+                video_subtitle_elem = await current_video.query_selector('h2[data-e2e="user-subtitle"]')
+                video_subtitle = safe_strip(await video_subtitle_elem.text_content()) if video_subtitle_elem else ""
+
                 duration = ""
                 duration_elem = await current_video.query_selector('p[class*="StyledTimeDisplayText"]')
                 if duration_elem:
@@ -160,7 +163,7 @@ async def scrape_feed(num_scrolls=10):
                             if music_author_elem:
                                 music_author = safe_strip(await music_author_elem.text_content())
 
-                            music_originality = "true" if username.lower() == music_author.lstrip('@').lower() else "false"
+                            music_originality = "true" if video_subtitle.lower() == music_author.lstrip('@').lower() else "false"
 
                         except Exception as e:
                             print("Lỗi khi trích xuất thông tin âm thanh:", e)
@@ -217,7 +220,7 @@ async def scrape_feed(num_scrolls=10):
         print(f"\nTổng thời gian:  {round(end_time - start_time, 2)} giây.")
         return results
 
-def save_to_csv(data, filename='finalProject/data/tiktok_feed.csv'):
+def save_to_csv(data, filename='finalProject/data/tiktok_feed_2.csv'):
     with open(filename, mode="w", newline='', encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=[
             "user_name", "user_followers", "vid_id", "vid_caption", "vid_postTime", "vid_scrapeTime", 
@@ -229,5 +232,5 @@ def save_to_csv(data, filename='finalProject/data/tiktok_feed.csv'):
     print(f"\nĐã lưu {len(data)} video vào file {filename}")
 
 if __name__ == "__main__":
-    data = asyncio.run(scrape_feed(num_scrolls=5))
+    data = asyncio.run(scrape_feed(num_scrolls=200))
     save_to_csv(data)
