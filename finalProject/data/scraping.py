@@ -1,6 +1,7 @@
 import asyncio
 import csv
 import time
+import re
 import datetime
 from playwright.async_api import async_playwright
 
@@ -75,7 +76,7 @@ async def scrape_feed(num_scrolls=10):
 
         for i in range(num_scrolls):
             print(f"\nScroll #{i+1}")
-            await page.wait_for_timeout(2000)
+            await page.wait_for_timeout(20000)
 
             video_selector = f'article[data-e2e="recommend-list-item-container"][data-scroll-index="{i}"]'
             current_video = await page.query_selector(video_selector)
@@ -100,9 +101,6 @@ async def scrape_feed(num_scrolls=10):
                 shares = safe_strip(await shares_elem.text_content() if shares_elem else "")
                 undefined = safe_strip(await undefined_elem.text_content() if undefined_elem else "")
                 caption = safe_strip(await caption_elem.text_content() if caption_elem else "")
-
-                video_subtitle_elem = await current_video.query_selector('h2[data-e2e="user-subtitle"]')
-                video_subtitle = safe_strip(await video_subtitle_elem.text_content()) if video_subtitle_elem else ""
 
                 duration = ""
                 duration_elem = await current_video.query_selector('p[class*="StyledTimeDisplayText"]')
@@ -139,17 +137,20 @@ async def scrape_feed(num_scrolls=10):
                 music_originality = ""
 
                 music_href = await current_video.query_selector('a[data-e2e="video-music"]')
+                if not music_href:
+                    music_href = await current_video.query_selector('h4[data-e2e="browse-music"] a')
                 if music_href:
                     href = await music_href.get_attribute("href")
                     if href:
                         music_url = f"https://www.tiktok.com{href}"
                         sound_page = await context.new_page()
                         await sound_page.goto(music_url, timeout=20000)
-                        await sound_page.wait_for_timeout(2000)
+                        await sound_page.wait_for_timeout(20000)
 
                         try:
-                            if "music" in href:
-                                sound_id = href.split("-")[-1]
+                            match = re.search(r'(\d{10,})/?$', href)
+                            if match:
+                                sound_id = match.group(1)                            
 
                             music_title_elem = await sound_page.query_selector('h1[data-e2e="music-title"]')
                             if music_title_elem:
@@ -159,11 +160,20 @@ async def scrape_feed(num_scrolls=10):
                             if uses_elem:
                                 uses_sound_count = safe_strip(await uses_elem.text_content())
 
-                            music_author_elem = await sound_page.query_selector('h2[data-e2e="music-creator"] a')
-                            if music_author_elem:
-                                music_author = safe_strip(await music_author_elem.text_content())
+                            music_author_elems = await sound_page.query_selector_all('h2[data-e2e="music-creator"] a')
+                            music_authors = []
+                            music_usernames = []
 
-                            music_originality = "true" if video_subtitle.lower() == music_author.lstrip('@').lower() else "false"
+                            for author_elem in music_author_elems:
+                                display_name = safe_strip(await author_elem.text_content())
+                                href = await author_elem.get_attribute("href")
+                                if href and href.startswith("/@"):
+                                    username_only = href.split("/")[-1].lstrip("@").lower()
+                                    music_usernames.append(username_only)
+                                music_authors.append(display_name)
+
+                            music_author = "|".join(music_authors)
+                            music_originality = "true" if username.lower() in music_usernames else "false"
 
                         except Exception as e:
                             print("Lỗi khi trích xuất thông tin âm thanh:", e)
@@ -220,7 +230,7 @@ async def scrape_feed(num_scrolls=10):
         print(f"\nTổng thời gian:  {round(end_time - start_time, 2)} giây.")
         return results
 
-def save_to_csv(data, filename='finalProject/data/tiktok_feed_2.csv'):
+def save_to_csv(data, filename='finalProject/data/tiktok_feed_1.csv'):
     with open(filename, mode="w", newline='', encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=[
             "user_name", "user_followers", "vid_id", "vid_caption", "vid_postTime", "vid_scrapeTime", 
@@ -232,5 +242,6 @@ def save_to_csv(data, filename='finalProject/data/tiktok_feed_2.csv'):
     print(f"\nĐã lưu {len(data)} video vào file {filename}")
 
 if __name__ == "__main__":
-    data = asyncio.run(scrape_feed(num_scrolls=200))
+    data = asyncio.run(scrape_feed(num_scrolls=7))
+
     save_to_csv(data)
