@@ -76,7 +76,7 @@ async def scrape_feed(num_scrolls=10):
 
         for i in range(num_scrolls):
             print(f"\nScroll #{i+1}")
-            await page.wait_for_timeout(20000)
+            await page.wait_for_timeout(2000)
 
             video_selector = f'article[data-e2e="recommend-list-item-container"][data-scroll-index="{i}"]'
             current_video = await page.query_selector(video_selector)
@@ -129,6 +129,7 @@ async def scrape_feed(num_scrolls=10):
                 views = await get_video_views(context, username, video_id)
                 followers = await get_user_followers(context, username)
                 post_time = get_post_time(video_id)
+                
 
                 sound_id = ""
                 sound_title = ""
@@ -136,16 +137,16 @@ async def scrape_feed(num_scrolls=10):
                 music_author = ""
                 music_originality = ""
 
-                music_href = await current_video.query_selector('a[data-e2e="video-music"]')
-                if not music_href:
-                    music_href = await current_video.query_selector('h4[data-e2e="browse-music"] a')
+                music_href = await current_video.query_selector('a[data-e2e="video-music"]') or \
+                                      await current_video.query_selector('h4[data-e2e="video-music"] a') or \
+                                      await current_video.query_selector('h4[data-e2e="browse-music"] a')
                 if music_href:
                     href = await music_href.get_attribute("href")
                     if href:
                         music_url = f"https://www.tiktok.com{href}"
                         sound_page = await context.new_page()
                         await sound_page.goto(music_url, timeout=20000)
-                        await sound_page.wait_for_timeout(20000)
+                        await sound_page.wait_for_timeout(2000)
 
                         try:
                             match = re.search(r'(\d{10,})/?$', href)
@@ -230,7 +231,7 @@ async def scrape_feed(num_scrolls=10):
         print(f"\nTổng thời gian:  {round(end_time - start_time, 2)} giây.")
         return results
 
-def save_to_csv(data, filename='finalProject/data/tiktok_feed_1.csv'):
+def save_to_csv(data, filename='finalProject/data/tiktok_feed_2.csv'):
     with open(filename, mode="w", newline='', encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=[
             "user_name", "user_followers", "vid_id", "vid_caption", "vid_postTime", "vid_scrapeTime", 
@@ -243,5 +244,4 @@ def save_to_csv(data, filename='finalProject/data/tiktok_feed_1.csv'):
 
 if __name__ == "__main__":
     data = asyncio.run(scrape_feed(num_scrolls=7))
-
     save_to_csv(data)
