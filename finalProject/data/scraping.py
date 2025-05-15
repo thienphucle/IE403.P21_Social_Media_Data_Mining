@@ -231,7 +231,7 @@ async def scrape_feed(num_scrolls=10):
         print(f"\nTổng thời gian:  {round(end_time - start_time, 2)} giây.")
         return results
 
-def save_to_csv(data, filename='finalProject/data/tiktok_feed_2.csv'):
+def save_to_csv(data, filename='finalProject/data/tiktok_feed_1.csv'):
     with open(filename, mode="w", newline='', encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=[
             "user_name", "user_followers", "vid_id", "vid_caption", "vid_postTime", "vid_scrapeTime", 
@@ -243,5 +243,5 @@ def save_to_csv(data, filename='finalProject/data/tiktok_feed_2.csv'):
     print(f"\nĐã lưu {len(data)} video vào file {filename}")
 
 if __name__ == "__main__":
-    data = asyncio.run(scrape_feed(num_scrolls=7))
+    data = asyncio.run(scrape_feed(num_scrolls=400))
     save_to_csv(data)
