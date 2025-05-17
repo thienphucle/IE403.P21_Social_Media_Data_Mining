@@ -243,5 +243,5 @@ def save_to_csv(data, filename='finalProject/data/tiktok_feed_1.csv'):
     print(f"\nĐã lưu {len(data)} video vào file {filename}")
 
 if __name__ == "__main__":
-    data = asyncio.run(scrape_feed(num_scrolls=400))
+    data = asyncio.run(scrape_feed(num_scrolls=1200))
     save_to_csv(data)
