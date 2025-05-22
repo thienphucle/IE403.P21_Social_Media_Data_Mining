@@ -1,7 +1,7 @@
 ## Data Description - Mô tả Dữ liệu
 - *user_name*: Tên người dùng đăng video trên TikTok.
 
-- *user_nfollower*: Số lượng người theo dõi kênh người dùng.
+- *user_followers*: Số lượng người theo dõi kênh người dùng.
 
 - *vid_id*: Mã định danh duy nhất của video TikTok.
 
@@ -37,3 +37,17 @@
 
 - *music_originality*: The originality of the music. (String)
 
+
+## Data Pre-processing
+
+- chuẩn hóa K, M ; xóa đơn vị (videos)
+- chuẩn hóa đúng kiểu dữ liệu
+- chuẩn hóa vid_duration
+- nan processing
+- tính viral score 
+- tính vid_existtime = vid_scrapetime - vid_scrapetime
+
+
+## prompting to give a viral score, alt text
+## EDA
+## model 
