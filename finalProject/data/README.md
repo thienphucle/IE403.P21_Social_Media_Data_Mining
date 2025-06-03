@@ -1,7 +1,7 @@
 ## Data Description - Mô tả Dữ liệu
 - *user_name*: Tên người dùng đăng video trên TikTok.
 
-- *user_followers*: Số lượng người theo dõi kênh người dùng.
+- *user_nfollower*: Số lượng người theo dõi kênh người dùng.
 
 - *vid_id*: Mã định danh duy nhất của video TikTok.
 

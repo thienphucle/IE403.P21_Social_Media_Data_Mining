@@ -1,0 +1,16 @@
+playwright>=1.43.0
+asyncio
+pandas
+numpy
+emoji
+nltk
+transformers
+torch
+python-dateutil
+scikit-learn
+xgboost
+matplotlib
+seaborn
+joblib
+torch
+python-dateutil
