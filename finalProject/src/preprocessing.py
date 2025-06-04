@@ -34,6 +34,38 @@ def convert_to_vietnam_time(utc_time):
     utc = pd.to_datetime(utc_time).replace(tzinfo=from_zone)
     return utc.astimezone(to_zone)
 
+def calculate_viral_score(row):
+    if row['vid_nview'] == 0 or pd.isna(row['vid_nview']):
+        return 0
+
+    # 1. Engagement (40% weight - all metrics equally weighted)
+    engagement_metrics = [
+        row['vid_nlike'] / row['vid_nview'],
+        row['vid_ncomment'] / row['vid_nview'],
+        row['vid_nshare'] / row['vid_nview'],
+        row['vid_nsave'] / row['vid_nview']
+    ]
+    engagement_ratio = np.mean(engagement_metrics)
+    engagement_score = min(40, engagement_ratio * 10_000)
+
+    # 2. Creator Influence (20% weight)
+    if row['user_nfollower'] <= 1000:  # Micro-influencers get bonus
+        influence_score = min(20, (row['user_nfollower'] / 1000) * 10 + 10)
+    else:
+        influence_score = min(20, np.log10(row['user_nfollower']) * 5)
+
+    # 3. Content Virality (30% weight)
+    hashtag_count = len(row['vid_hashtags_normalized'])
+    duration_score = 10 * (1 - min(1, row['vid_duration_sec'] / 60))  # Prefer shorter videos
+    content_score = min(30, (hashtag_count * 5 + duration_score * 2))
+
+    # 4. Velocity & Recency (10% weight)
+    velocity = (row['vid_nview'] / max(1, row['vid_existtime_hrs'])) / 1000
+    recency_score = 5 * (1 - min(1, row['vid_existtime_hrs'] / 72))  # Fresh = better
+    velocity_score = min(10, velocity + recency_score)
+
+    return min(100, engagement_score + influence_score + content_score + velocity_score)
+
 def preprocess_tiktok_data(df):
     df_clean = df.copy()
 
@@ -91,10 +123,13 @@ def preprocess_tiktok_data(df):
     df_clean['music_title'] = df_clean['music_title'].fillna('Unknown')
     df_clean['music_authorName'] = df_clean['music_authorName'].fillna('Unknown')
 
-    # Calculate time-based features
+    # Time-based features
     df_clean['vid_existtime_hrs'] = (df_clean['vid_scrapeTime'] - df_clean['vid_postTime']).dt.total_seconds() / 3600
     df_clean['post_hour'] = df_clean['vid_postTime'].dt.hour
     df_clean['post_day'] = df_clean['vid_postTime'].dt.day_name()
+
+    # Calculate viral score
+    df_clean['viral_score'] = df_clean.apply(calculate_viral_score, axis=1)
 
     return df_clean
 
@@ -114,3 +149,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

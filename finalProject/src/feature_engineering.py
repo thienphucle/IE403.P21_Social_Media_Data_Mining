@@ -24,33 +24,6 @@ def extract_phobert_features(texts, model_name="vinai/phobert-base"):
     
     return np.array(features)
 
-def calculate_viral_score(row):
-    if row['vid_nview'] == 0 or pd.isna(row['vid_nview']):
-        return 0
-
-    #
-    engagement = (
-        0.4 * (row['vid_nlike'] / row['vid_nview']) +
-        0.3 * (row['vid_ncomment'] / row['vid_nview']) +
-        0.2 * (row['vid_nshare'] / row['vid_nview']) +
-        0.1 * (row['vid_nsave'] / row['vid_nview'])
-    ) * 40
-
-    #
-    influence = min(20, np.log10(row['user_nfollower'] + 1) * 4)
-
-    #
-    hashtag_count = len(row['vid_hashtags_normalized'])
-    duration_score = max(0, 10 - (row['vid_duration_sec'] / 10))
-    content = min(20, (hashtag_count * 2) + duration_score)
-
-    #
-    recency = max(0, 20 - (row['vid_existtime_hrs'] / 24)) if row['vid_existtime_hrs'] > 0 else 0
-    velocity = min(20, (row['vid_nview'] / row['vid_existtime_hrs']) / 1000) if row['vid_existtime_hrs'] > 0 else 0
-
-    total_score = engagement + influence + content + (recency * 0.5 + velocity * 0.5)
-    return min(100, max(0, total_score))
-
 def extract_features(df):
     df_features = df.copy()
     
@@ -71,9 +44,8 @@ def extract_features(df):
     print("Extracting PhoBERT embeddings...")
     phobert_features = extract_phobert_features(df_features['vid_desc_clean'])
     
-    # Calculate viral score
-    print("Calculating viral scores...")
-    viral_scores = df_features.apply(calculate_viral_score, axis=1).values
+    # Use precomputed viral score
+    viral_scores = df_features['viral_score'].values
     
     # Create metadata dictionary
     metadata = {

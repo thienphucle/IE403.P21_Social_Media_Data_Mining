@@ -231,7 +231,7 @@ async def scrape_feed(num_scrolls=10):
         print(f"\nTổng thời gian:  {round(end_time - start_time, 2)} giây.")
         return results
 
-def save_to_csv(data, filename='finalProject/data/tiktok_feed.csv'):
+def save_to_csv(data, filename='finalProject/data/tiktok_feed1.csv'):
     with open(filename, mode="w", newline='', encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=[
             "user_name", "user_nfollower", "vid_id", "vid_caption", "vid_postTime", "vid_scrapeTime", 
@@ -244,7 +244,7 @@ def save_to_csv(data, filename='finalProject/data/tiktok_feed.csv'):
 
 if __name__ == "__main__":
     try:
-        data = asyncio.run(scrape_feed(num_scrolls=500))
+        data = asyncio.run(scrape_feed(num_scrolls=5))
     except Exception as e:
         data = locals().get("data", [])
 
@@ -252,8 +252,4 @@ if __name__ == "__main__":
         save_to_csv(data)
     else:
         print("Không có dữ liệu nào được lưu.")
-
-
-
-
 
