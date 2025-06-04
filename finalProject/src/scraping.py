@@ -56,7 +56,6 @@ async def get_video_views(context, username, target_video_id):
         await page.close() 
     return ""
 
-# Main crawler
 async def scrape_feed(num_scrolls=10):
     async with async_playwright() as p:
         browser = await p.chromium.launch(
