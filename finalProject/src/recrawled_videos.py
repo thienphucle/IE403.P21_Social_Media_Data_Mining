@@ -145,7 +145,7 @@ async def get_video_metadata(context, video_url, username, post_time):
         await page.close()
 
 async def main():
-    df = pd.read_csv("raw_1.csv")
+    df = pd.read_csv("raw_31.csv")
     results = []
 
     async with async_playwright() as p:
@@ -172,7 +172,7 @@ async def main():
 
                     # Save temp result
                     temp_df = pd.DataFrame(results)
-                    temp_df.to_csv("recrawled_videos_temp.csv", index=False, encoding='utf-8-sig')
+                    temp_df.to_csv("recrawled_videos_temp31.csv", index=False, encoding='utf-8-sig')
             except Exception as e:
                 print(f"Failed to process video: {e}")
 
@@ -180,7 +180,7 @@ async def main():
 
     if results:
         df_final = pd.DataFrame(results)
-        df_final.to_csv("recrawled_videos.csv", index=False, encoding='utf-8-sig')
+        df_final.to_csv("recrawled_videos31.csv", index=False, encoding='utf-8-sig')
         print("\nCrawling completed successfully!")
     else:
         print("\nNo data was collected!")
