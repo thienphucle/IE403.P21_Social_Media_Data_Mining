@@ -1,4 +1,3 @@
-# viral_prediction.py
 import pandas as pd
 import numpy as np
 from sklearn.model_selection import train_test_split
@@ -6,23 +5,40 @@ from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
 from sklearn.metrics import mean_squared_error, r2_score, classification_report
 import xgboost as xgb
 from typing import Dict, List, Tuple
+import pickle
+from pathlib import Path
 
 class ViralPredictor:
     def __init__(self):
         self.growth_model = RandomForestRegressor(n_estimators=100, random_state=42)
         self.viral_classifier = RandomForestClassifier(n_estimators=100, random_state=42)
-        self.hashtag_recommender = None
-        self.sound_recommender = None
-
-    def prepare_features(self, df: pd.DataFrame) -> np.ndarray:
-        """Prepare features for prediction"""
-        features = np.hstack([
-            df['tfidf_features'].tolist(),
-            df['phobert_features'].tolist(),
-            df[['hashtag_count', 'vid_duration_sec', 'user_nfollower',
-                'post_hour', 'engagement_rate']].values
+        
+    def prepare_features(self, features_dir: str) -> Tuple[np.ndarray, Dict]:
+        """Load and prepare features for prediction"""
+        features_dir = Path(features_dir)
+        
+        # Load dense features
+        with np.load(features_dir / 'dense_features.npz') as data:
+            tfidf_features = data['tfidf_features']
+            phobert_features = data['phobert_features']
+        
+        # Load metadata
+        with np.load(features_dir / 'metadata.npz') as data:
+            metadata = {key: data[key] for key in data.files}
+        
+        # Combine features
+        X = np.hstack([
+            tfidf_features,
+            phobert_features,
+            np.column_stack([
+                metadata['hashtag_counts'],
+                metadata['durations'],
+                metadata['followers'],
+                metadata['engagement_rates']
+            ])
         ])
-        return features
+        
+        return X, metadata
 
     def train_growth_predictor(self, X: np.ndarray, y: np.ndarray):
         """Train model to predict growth rate"""
@@ -52,77 +68,112 @@ class ViralPredictor:
             'feature_importance': self.viral_classifier.feature_importances_
         }
 
-    def predict_growth(self, X: np.ndarray) -> np.ndarray:
-        """Predict growth rate for new videos"""
-        return self.growth_model.predict(X)
-
-    def predict_viral_probability(self, X: np.ndarray) -> np.ndarray:
-        """Predict probability of video going viral"""
-        return self.viral_classifier.predict_proba(X)
+    def save_models(self, output_dir: str):
+        """Save trained models"""
+        output_dir = Path(output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
+        
+        with open(output_dir / 'growth_model.pkl', 'wb') as f:
+            pickle.dump(self.growth_model, f)
+        
+        with open(output_dir / 'viral_classifier.pkl', 'wb') as f:
+            pickle.dump(self.viral_classifier, f)
 
 class TrendRecommender:
     def __init__(self):
         self.hashtag_model = xgb.XGBRegressor()
         self.sound_model = xgb.XGBRegressor()
+        self.trending_features = None
         
-    def prepare_trend_features(self, trends_df: pd.DataFrame) -> np.ndarray:
-        """Prepare features for trend prediction"""
+    def load_trending_features(self, features_dir: str):
+        """Load trending features"""
+        features_dir = Path(features_dir)
+        self.trending_features = pd.read_pickle(features_dir / 'trending_features.pkl')
+    
+    def prepare_hashtag_features(self, trends_df: pd.DataFrame) -> np.ndarray:
+        """Prepare features for hashtag prediction"""
         return np.column_stack([
             trends_df['total_views'].values,
             trends_df['avg_engagement'].values,
             trends_df['usage_count'].values
         ])
     
-    def train_recommenders(self, df: pd.DataFrame):
+    def prepare_sound_features(self, trends_df: pd.DataFrame) -> np.ndarray:
+        """Prepare features for sound prediction"""
+        return np.column_stack([
+            trends_df['vid_nview'].values,
+            trends_df['vid_nlike'].values,
+            trends_df['vid_nshare'].values
+        ])
+    
+    def train_recommenders(self):
         """Train hashtag and sound recommenders"""
         # Train hashtag recommender
-        hashtag_features = self.prepare_trend_features(df['hashtag_trends'])
-        hashtag_target = df['hashtag_trends']['total_views'] * \
-                        df['hashtag_trends']['avg_engagement']
+        hashtag_features = self.prepare_hashtag_features(self.trending_features['hashtag_trends'])
+        hashtag_target = self.trending_features['hashtag_trends']['total_views'] * \
+                        self.trending_features['hashtag_trends']['avg_engagement']
         self.hashtag_model.fit(hashtag_features, hashtag_target)
         
         # Train sound recommender
-        sound_features = np.column_stack([
-            df['sound_trends']['vid_nview'].values,
-            df['sound_trends']['vid_nlike'].values,
-            df['sound_trends']['vid_nshare'].values
-        ])
-        sound_target = df['sound_trends']['music_nused'].values
+        sound_features = self.prepare_sound_features(self.trending_features['sound_trends'])
+        sound_target = self.trending_features['sound_trends']['music_nused'].values
         self.sound_model.fit(sound_features, sound_target)
     
     def recommend_hashtags(self, n_recommendations: int = 5) -> List[str]:
         """Recommend trending hashtags"""
-        predictions = self.hashtag_model.predict(self.prepare_trend_features(self.hashtag_trends))
+        features = self.prepare_hashtag_features(self.trending_features['hashtag_trends'])
+        predictions = self.hashtag_model.predict(features)
         top_indices = np.argsort(predictions)[-n_recommendations:]
-        return self.hashtag_trends.iloc[top_indices]['hashtag'].tolist()
+        return self.trending_features['hashtag_trends'].iloc[top_indices]['hashtag'].tolist()
     
     def recommend_sounds(self, n_recommendations: int = 5) -> List[Dict]:
         """Recommend trending sounds"""
-        predictions = self.sound_model.predict(self.prepare_trend_features(self.sound_trends))
+        features = self.prepare_sound_features(self.trending_features['sound_trends'])
+        predictions = self.sound_model.predict(features)
         top_indices = np.argsort(predictions)[-n_recommendations:]
-        return self.sound_trends.iloc[top_indices][['music_id', 'music_title']].to_dict('records')
+        return self.trending_features['sound_trends'].iloc[top_indices][['music_id', 'music_title']].to_dict('records')
+
+    def save_models(self, output_dir: str):
+        """Save trained models"""
+        output_dir = Path(output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
+        
+        with open(output_dir / 'hashtag_model.pkl', 'wb') as f:
+            pickle.dump(self.hashtag_model, f)
+        
+        with open(output_dir / 'sound_model.pkl', 'wb') as f:
+            pickle.dump(self.sound_model, f)
 
 def main():
-    # Load preprocessed data
-    df = pd.read_csv("finalProject/data/processed_data.csv")
+    features_dir = "finalProject/data/features"
+    models_dir = "finalProject/models"
     
     # Initialize predictors
     viral_predictor = ViralPredictor()
     trend_recommender = TrendRecommender()
     
-    # Prepare features
-    X = viral_predictor.prepare_features(df)
-    growth_target = df['growth_rate'].values
-    viral_target = (df['engagement_rate'] > df['engagement_rate'].median()).astype(int)
+    # Load and prepare features
+    print("Loading features...")
+    X, metadata = viral_predictor.prepare_features(features_dir)
+    trend_recommender.load_trending_features(features_dir)
     
-    # Train models
-    growth_metrics = viral_predictor.train_growth_predictor(X, growth_target)
-    viral_metrics = viral_predictor.train_viral_classifier(X, viral_target)
+    # Train viral prediction models
+    print("\nTraining viral prediction models...")
+    growth_metrics = viral_predictor.train_growth_predictor(X, metadata['growth_rates'])
+    viral_metrics = viral_predictor.train_viral_classifier(
+        X, (metadata['engagement_rates'] > np.median(metadata['engagement_rates'])).astype(int)
+    )
     
     # Train trend recommenders
-    trend_recommender.train_recommenders(df)
+    print("\nTraining trend recommenders...")
+    trend_recommender.train_recommenders()
     
-    # Save models and metrics
+    # Save models
+    print("\nSaving models...")
+    viral_predictor.save_models(models_dir)
+    trend_recommender.save_models(models_dir)
+    
+    # Print metrics and recommendations
     print("\nGrowth Prediction Metrics:")
     print(f"MSE: {growth_metrics['mse']:.4f}")
     print(f"R2 Score: {growth_metrics['r2']:.4f}")

@@ -4,6 +4,7 @@ import torch
 from transformers import AutoTokenizer, AutoModel
 from sklearn.feature_extraction.text import TfidfVectorizer
 import pickle
+from typing import Dict, List, Tuple
 from pathlib import Path
 
 def extract_phobert_features(texts, model_name="vinai/phobert-base"):
@@ -24,28 +25,79 @@ def extract_phobert_features(texts, model_name="vinai/phobert-base"):
     
     return np.array(features)
 
+def calculate_growth_rate(row):
+    """Calculate video growth rate based on views and time"""
+    hours_since_post = (pd.to_datetime(row['vid_scrapeTime']) - 
+                       pd.to_datetime(row['vid_postTime'])).total_seconds() / 3600
+    if hours_since_post > 0:
+        return row['vid_nview'] / hours_since_post
+    return 0
+
+def calculate_engagement_rate(row):
+    """Calculate engagement rate based on interactions"""
+    if row['vid_nview'] > 0:
+        total_engagement = (row['vid_nlike'] + row['vid_ncomment'] + 
+                          row['vid_nshare'] + row['vid_nsave'])
+        return (total_engagement / row['vid_nview']) * 100
+    return 0
+
+def extract_trending_features(df: pd.DataFrame) -> Dict[str, pd.DataFrame]:
+    """Extract trending hashtags and sounds"""
+    # Hashtag trends
+    hashtag_stats = []
+    for idx, row in df.iterrows():
+        hashtags = row['vid_hashtags_normalized']
+        for tag in hashtags:
+            hashtag_stats.append({
+                'hashtag': tag,
+                'views': row['vid_nview'],
+                'engagement': calculate_engagement_rate(row),
+                'timestamp': pd.to_datetime(row['vid_postTime'])
+            })
+    
+    hashtag_df = pd.DataFrame(hashtag_stats)
+    hashtag_trends = hashtag_df.groupby('hashtag').agg({
+        'views': 'sum',
+        'engagement': 'mean',
+        'timestamp': 'count'
+    }).reset_index()
+    hashtag_trends.columns = ['hashtag', 'total_views', 'avg_engagement', 'usage_count']
+    
+    # Sound trends
+    sound_stats = df.groupby(['music_id', 'music_title']).agg({
+        'vid_nview': 'sum',
+        'vid_nlike': 'sum',
+        'vid_ncomment': 'sum',
+        'vid_nshare': 'sum',
+        'music_nused': 'first'
+    }).reset_index()
+    
+    return {
+        'hashtag_trends': hashtag_trends,
+        'sound_trends': sound_stats
+    }
+
 def extract_features(df):
     df_features = df.copy()
     
-    df_features['vid_desc_clean'] = df_features['vid_desc_clean'].fillna('')
-    df_features['vid_hashtags_normalized'] = df_features['vid_hashtags_normalized'].apply(
-        lambda x: x if isinstance(x, list) else []
-    )
-
+    # Calculate growth and engagement rates
+    df_features['growth_rate'] = df_features.apply(calculate_growth_rate, axis=1)
+    df_features['engagement_rate'] = df_features.apply(calculate_engagement_rate, axis=1)
+    
+    # Extract trending features
+    trending_features = extract_trending_features(df_features)
+    
     # Extract TF-IDF features
     print("Extracting TF-IDF features...")
     tfidf = TfidfVectorizer(max_features=1000)
     text_features = tfidf.fit_transform(
-        df_features['vid_desc_clean'] + ' ' + 
+        df_features['vid_caption_clean'] + ' ' + 
         df_features['vid_hashtags_normalized'].apply(lambda x: ' '.join(x))
     )
     
     # Extract PhoBERT features
     print("Extracting PhoBERT embeddings...")
-    phobert_features = extract_phobert_features(df_features['vid_desc_clean'])
-    
-    # Use precomputed viral score
-    viral_scores = df_features['viral_score'].values
+    phobert_features = extract_phobert_features(df_features['vid_caption_clean'])
     
     # Create metadata dictionary
     metadata = {
@@ -58,13 +110,15 @@ def extract_features(df):
         'likes': df_features['vid_nlike'].values,
         'comments': df_features['vid_ncomment'].values,
         'shares': df_features['vid_nshare'].values,
-        'saves': df_features['vid_nsave'].values
+        'saves': df_features['vid_nsave'].values,
+        'growth_rates': df_features['growth_rate'].values,
+        'engagement_rates': df_features['engagement_rate'].values
     }
     
     return {
         'tfidf_features': text_features.toarray(),
         'phobert_features': phobert_features,
-        'viral_scores': viral_scores,
+        'trending_features': trending_features,
         'tfidf_vectorizer': tfidf,
         'metadata': metadata
     }
@@ -77,8 +131,7 @@ def save_features(features, output_dir):
     np.savez_compressed(
         output_dir / 'dense_features.npz',
         tfidf_features=features['tfidf_features'],
-        phobert_features=features['phobert_features'],
-        viral_scores=features['viral_scores']
+        phobert_features=features['phobert_features']
     )
     
     # Save metadata using numpy
@@ -87,7 +140,10 @@ def save_features(features, output_dir):
         **features['metadata']
     )
     
-    # Save the TF-IDF vectorizer using pickle
+    # Save trending features
+    pd.to_pickle(features['trending_features'], output_dir / 'trending_features.pkl')
+    
+    # Save the TF-IDF vectorizer
     with open(output_dir / 'tfidf_vectorizer.pkl', 'wb') as f:
         pickle.dump(features['tfidf_vectorizer'], f)
 
