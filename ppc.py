@@ -4,6 +4,7 @@ from datetime import datetime
 import emoji
 import re
 from dateutil import tz
+from typing import Dict, List, Tuple
 from pyvi import ViTokenizer
 
 def remove_emoji(text):
@@ -33,6 +34,58 @@ def convert_to_vietnam_time(utc_time):
     to_zone = tz.gettz('Asia/Ho_Chi_Minh')
     utc = pd.to_datetime(utc_time).replace(tzinfo=from_zone)
     return utc.astimezone(to_zone)
+
+def calculate_growth_rate(row):
+    """Calculate video growth rate based on views and time"""
+    hours_since_post = (pd.to_datetime(row['vid_scrapeTime']) - 
+                       pd.to_datetime(row['vid_postTime'])).total_seconds() / 3600
+    if hours_since_post > 0:
+        return row['vid_nview'] / hours_since_post
+    return 0
+
+def calculate_engagement_rate(row):
+    """Calculate engagement rate based on interactions"""
+    if row['vid_nview'] > 0:
+        total_engagement = (row['vid_nlike'] + row['vid_ncomment'] + 
+                          row['vid_nshare'] + row['vid_nsave'])
+        return (total_engagement / row['vid_nview']) * 100
+    return 0
+
+def extract_trending_features(df: pd.DataFrame) -> Dict[str, pd.DataFrame]:
+    """Extract trending hashtags and sounds"""
+    # Hashtag trends
+    hashtag_stats = []
+    for idx, row in df.iterrows():
+        hashtags = row['vid_hashtags_normalized']
+        for tag in hashtags:
+            hashtag_stats.append({
+                'hashtag': tag,
+                'views': row['vid_nview'],
+                'engagement': calculate_engagement_rate(row),
+                'timestamp': pd.to_datetime(row['vid_postTime'])
+            })
+    
+    hashtag_df = pd.DataFrame(hashtag_stats)
+    hashtag_trends = hashtag_df.groupby('hashtag').agg({
+        'views': 'sum',
+        'engagement': 'mean',
+        'timestamp': 'count'
+    }).reset_index()
+    hashtag_trends.columns = ['hashtag', 'total_views', 'avg_engagement', 'usage_count']
+    
+    # Sound trends
+    sound_stats = df.groupby(['music_id', 'music_title']).agg({
+        'vid_nview': 'sum',
+        'vid_nlike': 'sum',
+        'vid_ncomment': 'sum',
+        'vid_nshare': 'sum',
+        'music_nused': 'first'
+    }).reset_index()
+    
+    return {
+        'hashtag_trends': hashtag_trends,
+        'sound_trends': sound_stats
+    }
 
 def calculate_viral_score(row):
     if row['vid_nview'] == 0 or pd.isna(row['vid_nview']):
@@ -93,7 +146,7 @@ def preprocess_tiktok_data(df):
     for col in numeric_cols:
         df_clean[col] = df_clean[col].apply(convert_units)
 
-    # Clean text data
+    # Clean caption text
     df_clean['vid_desc_clean'] = df_clean['vid_caption'].fillna('')
     df_clean['vid_desc_clean'] = df_clean['vid_desc_clean'].apply(remove_emoji)
     df_clean['vid_desc_clean'] = df_clean['vid_desc_clean'].apply(remove_stopwords)
@@ -103,8 +156,18 @@ def preprocess_tiktok_data(df):
     df_clean['hashtag_count'] = df_clean['vid_hashtags_normalized'].apply(len)
 
     # Convert timestamps
-    df_clean['vid_postTime'] = df_clean['vid_postTime'].apply(convert_to_vietnam_time)
-    df_clean['vid_scrapeTime'] = df_clean['vid_scrapeTime'].apply(convert_to_vietnam_time)
+    df_clean['vid_postTime'] = pd.to_datetime(df_clean['vid_postTime'])
+    df_clean['vid_scrapeTime'] = pd.to_datetime(df_clean['vid_scrapeTime'])
+
+    # Calculate growth and engagement metrics
+    df_clean['growth_rate'] = df_clean.apply(calculate_growth_rate, axis=1)
+    df_clean['engagement_rate'] = df_clean.apply(calculate_engagement_rate, axis=1)
+    
+    # Extract time-based features
+    df_clean['post_hour'] = df_clean['vid_postTime'].dt.hour
+    df_clean['post_day'] = df_clean['vid_postTime'].dt.day_name()
+    df_clean['video_age_hours'] = (df_clean['vid_scrapeTime'] - 
+                                  df_clean['vid_postTime']).dt.total_seconds() / 3600
 
     # Process duration
     def duration_to_seconds(duration):
@@ -118,15 +181,10 @@ def preprocess_tiktok_data(df):
 
     df_clean['vid_duration_sec'] = df_clean['vid_duration'].apply(duration_to_seconds)
 
-    # Fill missing values
-    df_clean['vid_hashtags'] = df_clean['vid_hashtags'].fillna('')
-    df_clean['music_title'] = df_clean['music_title'].fillna('Unknown')
-    df_clean['music_authorName'] = df_clean['music_authorName'].fillna('Unknown')
-
-    # Time-based features
-    df_clean['vid_existtime_hrs'] = (df_clean['vid_scrapeTime'] - df_clean['vid_postTime']).dt.total_seconds() / 3600
-    df_clean['post_hour'] = df_clean['vid_postTime'].dt.hour
-    df_clean['post_day'] = df_clean['vid_postTime'].dt.day_name()
+    # Extract trending features
+    trending_features = extract_trending_features(df_clean)
+    df_clean['hashtag_trends'] = trending_features['hashtag_trends']
+    df_clean['sound_trends'] = trending_features['sound_trends']
 
     # Calculate viral score
     df_clean['viral_score'] = df_clean.apply(calculate_viral_score, axis=1)
@@ -135,7 +193,7 @@ def preprocess_tiktok_data(df):
 
 def main():
     infile = "finalProject/data/raw_data.csv"
-    outfile = "finalProject/data/preprocessed_data.csv"
+    outfile = "finalProject/data/processedd_data.csv"
 
     print(f"Loading data from {infile}...")
     df = pd.read_csv(infile)
@@ -143,7 +201,7 @@ def main():
     print("Preprocessing data...")
     df_processed = preprocess_tiktok_data(df)
 
-    print(f"Saving preprocessed data to {outfile}...")
+    print(f"Saving processed data to {outfile}...")
     df_processed.to_csv(outfile, index=False)
     print("Done.")
 

@@ -313,7 +313,7 @@ def save_to_csv(data, filename='all_users_videos.csv'):
     print(f"Saved {len(data)} videos to {filename}")
 
 async def main():
-    input_csv = "test.csv"
+    input_csv = "part_2.csv"
     df = pd.read_csv(input_csv)
 
     all_results = []
@@ -339,7 +339,7 @@ async def main():
 
         await browser.close()
 
-    save_to_csv(all_results, "all_users_videos.csv")
+    save_to_csv(all_results, "users_p2.csv")
 
 if __name__ == "__main__":
     try:
