@@ -26,7 +26,7 @@ class ViralPredictor:
             phobert_features = data['phobert_features']
         
         # Load metadata
-        with np.load(features_dir / 'metadata.npz') as data:
+        with np.load(features_dir / 'metadata.npz', allow_pickle=True) as data:
             metadata = {key: data[key] for key in data.files}
         
         # Create feature matrix with proper handling of different feature types
@@ -429,7 +429,7 @@ def create_visualizations(growth_metrics: Dict, viral_metrics: Dict, output_dir:
 def main():
     features_dir = "finalProject/data/features"
     models_dir = "finalProject/models"
-    results_dir = "finalProject/results"
+    results_dir = "finalProject/model_results"
     
     # Create directories
     Path(models_dir).mkdir(parents=True, exist_ok=True)

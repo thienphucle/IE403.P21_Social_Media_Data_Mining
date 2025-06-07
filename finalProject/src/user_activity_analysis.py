@@ -550,7 +550,7 @@ def main():
     # File paths
     preprocessed_file = "finalProject/data/preprocessed_data.csv"
     user_videos_file = "finalProject/data/videos_baby_eyin.csv"  # This should be the combined user videos file
-    output_dir = "finalProject/results"
+    output_dir = "finalProject/analysis_results"
     
     # Create output directory
     Path(output_dir).mkdir(parents=True, exist_ok=True)

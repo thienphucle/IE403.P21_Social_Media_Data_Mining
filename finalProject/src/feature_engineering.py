@@ -324,10 +324,10 @@ def save_features(features, output_dir):
     print(f"Videos continuing to go viral: {features['metadata']['continuing_viral'].sum()}/{len(features['metadata']['continuing_viral'])}")
 
 def main():
-    infile = "finalProject/data/preprocessed_data.csv"
+    infile = "final_filtered_preprocessed_data_nomissing.csv"
     output_dir = "finalProject/data/features"
-    results_dir = "finalProject/results"
-    
+    results_dir = "finalProject/FE_results"
+
     # Create results directory
     Path(results_dir).mkdir(parents=True, exist_ok=True)
     

@@ -2,7 +2,8 @@ import asyncio
 import pandas as pd
 from playwright.async_api import async_playwright
 
-CHROME_PATH = "C:\Program Files\Google\Chrome\Application\chrome.exe"
+CHROME_PATH = "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
+MAX_RETRIES = 3
 
 def safe_strip(value):
     return value.strip() if value else ""
@@ -28,7 +29,8 @@ async def get_video_views(context, username, target_video_id):
     return ""
 
 async def main():
-    df = pd.read_csv("users.csv")
+    df = pd.read_csv("missing_vid_nview.csv")
+    failed_rows = []
 
     async with async_playwright() as p:
         browser = await p.chromium.launch(
@@ -43,16 +45,34 @@ async def main():
                 username = row["user_name"]
                 video_id = str(row["vid_id"])
                 print(f"\n[{idx + 1}] Refetching views for @{username} - {video_id}")
-                try:
-                    views = await get_video_views(context, username, video_id)
+
+                views = ""
+                for attempt in range(1, MAX_RETRIES + 1):
+                    try:
+                        print(f"  Attempt {attempt}...")
+                        views = await get_video_views(context, username, video_id)
+                        if views:
+                            break
+                    except Exception as e:
+                        print(f"  Retry error: {e}")
+
+                if views:
                     df.at[idx, "vid_nview"] = views
-                except Exception as e:
-                    print(f"Error: {e}")
+                    print(f"Views: {views}")
+                    df[df["vid_nview"].notna() & (df["vid_nview"].astype(str).str.strip() != "")] \
+                        .to_csv("videos.csv", index=False, encoding="utf-8-sig")
+                else:
+                    print(" Failed to retrieve views after retries.")
+                    failed_rows.append(idx)
 
         await browser.close()
 
-    df.to_csv("users_videos.csv", index=False, encoding="utf-8-sig")
-    print("\nView data updated and saved.")
+    print("\nDone.")
+    if failed_rows:
+        print(f"\nFailed to fetch views for {len(failed_rows)} videos. Saving to 'failed_videos.csv'")
+        df.iloc[failed_rows].to_csv("failed_videos.csv", index=False, encoding="utf-8-sig")
+    else:
+        print("All views fetched successfully.")
 
 if __name__ == "__main__":
     try:
