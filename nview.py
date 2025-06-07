@@ -28,7 +28,7 @@ async def get_video_views(context, username, target_video_id):
     return ""
 
 async def main():
-    df = pd.read_csv("tiktok_users.csv")
+    df = pd.read_csv("users.csv")
 
     async with async_playwright() as p:
         browser = await p.chromium.launch(
@@ -47,11 +47,11 @@ async def main():
                     views = await get_video_views(context, username, video_id)
                     df.at[idx, "vid_nview"] = views
                 except Exception as e:
-                    print(f"    [!] Error: {e}")
+                    print(f"Error: {e}")
 
         await browser.close()
 
-    df.to_csv("users.csv", index=False, encoding="utf-8-sig")
+    df.to_csv("users_videos.csv", index=False, encoding="utf-8-sig")
     print("\nView data updated and saved.")
 
 if __name__ == "__main__":

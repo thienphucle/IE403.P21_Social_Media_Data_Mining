@@ -134,8 +134,8 @@ def preprocess_tiktok_data(df):
     return df_clean
 
 def main():
-    infile = "finalProject/data/raw_data.csv"
-    outfile = "finalProject/data/preprocessed_data.csv"
+    infile = "top_video_per_user.csv"
+    outfile = "finalProject/data/preprocessed_top_viral.csv"
 
     print(f"Loading data from {infile}...")
     df = pd.read_csv(infile)
