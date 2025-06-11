@@ -313,7 +313,7 @@ def save_to_csv(data, filename='all_users_videos.csv'):
     print(f"Saved {len(data)} videos to {filename}")
 
 async def main():
-    input_csv = "part_2.csv"
+    input_csv = "part_3.csv"
     df = pd.read_csv(input_csv)
 
     all_results = []
