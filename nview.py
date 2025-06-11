@@ -39,7 +39,7 @@ async def get_video_views(context, username, target_video_id, max_scroll=MAX_SCR
     return ""
 
 async def main():
-    df = pd.read_csv("user/new/final_new_user_view.csv")
+    df = pd.read_csv("recrawl/new/recrawl_full_tp.csv")
     failed_rows = []
     updated_count = 0
 
@@ -74,7 +74,7 @@ async def main():
 
                     # Save periodically
                     if updated_count % SAVE_EVERY == 0:
-                        df.to_csv("user/new/final_v2.csv", index=False, encoding="utf-8-sig")
+                        df.to_csv("recrawl/new/recrawl_full_tp_view.csv", index=False, encoding="utf-8-sig")
                         print(f"Saved progress after {updated_count} updates.")
                 else:
                     print("Failed to retrieve views after retries.")
@@ -83,7 +83,7 @@ async def main():
         await browser.close()
 
     # Final save
-    df.to_csv("user/new/final_v2.csv", index=False, encoding="utf-8-sig")
+    df.to_csv("recrawl/new/recrawl_full_tp_view.csv", index=False, encoding="utf-8-sig")
     print(f"\nDone. Saved all data to videoss.csv")
 
     if failed_rows:
