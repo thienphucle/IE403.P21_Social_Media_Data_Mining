@@ -38,19 +38,3 @@
 - *music_originality*: The originality of the music. (String)
 
 
-## Data Pre-processing Step
-
-- chuẩn hóa K, M ; xóa đơn vị (videos)
-- chuẩn hóa đúng kiểu dữ liệu
-- chuẩn hóa vid_duration
-- nan processing
-- tính viral score 
-- tính vid_existtime = vid_scrapetime - vid_scrapetime
-- các bước pre-process cần thiết khác
-
-
-## prompting to give a viral score, alt text
-## EDA
-## model 
-
-
