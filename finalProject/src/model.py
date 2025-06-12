@@ -116,7 +116,6 @@ class ModernViralPredictor:
         self.feature_names = None
         
     def engineer_advanced_features(self, metadata: Dict) -> Tuple[np.ndarray, List[str]]:
-        """Tạo các features nâng cao cho viral prediction"""
         features = []
         feature_names = []
         
@@ -230,7 +229,6 @@ class ModernViralPredictor:
             return np.array([]).reshape(0, 0), []
     
     def prepare_features(self, features_dir: str) -> Tuple[np.ndarray, Dict]:
-        """Load và chuẩn bị features với kỹ thuật nâng cao"""
         features_dir = Path(features_dir)
         
         print("Loading dense features...")
@@ -720,7 +718,6 @@ class IntelligentTrendRecommender:
         return np.column_stack(features)
     
     def train_recommenders(self):
-        """Train comprehensive recommendation system"""
         if not self.trending_features:
             print("No trending features available for training")
             return
@@ -791,9 +788,9 @@ class IntelligentTrendRecommender:
                 
                 print(f"Sound recommender trained on {len(sound_df)} samples")
     
-    def recommend_hashtags(self, n_recommendations: int = 15, strategy: str = 'balanced') -> List[Dict]:
+    def recommend_hashtags(self, n_recommendations: int = 15, 
+                          strategy: str = 'balanced') -> List[Dict]:
         """
-        Advanced hashtag recommendations with multiple strategies
         Strategies:
         - 'balanced': Balance between viral potential and engagement
         - 'viral': Focus on viral potential
@@ -876,8 +873,6 @@ class IntelligentTrendRecommender:
     def recommend_sounds(self, n_recommendations: int = 10,
                         strategy: str = 'balanced') -> List[Dict]:
         """
-        Advanced sound recommendations with multiple strategies
-        
         Strategies:
         - 'balanced': Balance between popularity and viral potential
         - 'viral': Focus on viral potential
@@ -991,7 +986,6 @@ class IntelligentTrendRecommender:
         return diversity_scores
     
     def get_similar_hashtags(self, hashtag: str, n_similar: int = 5) -> List[str]:
-        """Find similar hashtags using content-based filtering"""
         if not self.trending_features or self.hashtag_features_matrix is None:
             return []
         
@@ -1022,7 +1016,6 @@ class IntelligentTrendRecommender:
             return []
     
     def save_models(self, output_dir: str):
-        """Save all recommendation models"""
         output_dir = Path(output_dir)
         output_dir.mkdir(parents=True, exist_ok=True)
         
@@ -1181,7 +1174,7 @@ def create_comprehensive_visualizations(growth_metrics: Dict, viral_metrics: Dic
     metrics = ['Growth R²', 'Growth MAE', 'Viral F1', 'Viral Acc']
     values = [
         growth_metrics['ensemble_r2'],
-        min(growth_metrics['ensemble_mae'] / 100, 1),  # Scale for visualization
+        min(growth_metrics['ensemble_mae'] / 100, 1),
         viral_metrics['ensemble_f1'],
         viral_metrics['ensemble_accuracy']
     ]
@@ -1340,14 +1333,14 @@ def main():
             print(f"      • {model}: Acc={scores['accuracy']:.4f}, F1={scores['f1']:.4f}, AUC={scores['auc']:.4f}")
         
         if not viral_metrics['feature_importance'].empty:
-            print(f"\n   Top Viral Classification Features:")
+            print(f"\n   🔍 Top Viral Classification Features:")
             for _, row in viral_metrics['feature_importance'].head(5).iterrows():
                 print(f"      • {row['feature']}: {row['importance']:.4f}")
         
         print(f"\nINTELLIGENT TREND RECOMMENDATIONS:")
         
-        print(f"\n   BALANCED HASHTAG STRATEGY (Top 10):")
-        for i, hashtag in enumerate(hashtag_recommendations[:10], 1):
+        print(f"\n   BALANCED HASHTAG STRATEGY (Top 5):")
+        for i, hashtag in enumerate(hashtag_recommendations[:5], 1):
             trend_score = hashtag.get('trend_score', 0)
             viral_score = hashtag.get('viral_score', 0)
             engagement_score = hashtag.get('engagement_score', 0)
@@ -1365,8 +1358,8 @@ def main():
             engagement_score = hashtag.get('engagement_score', hashtag.get('avg_engagement', 0))
             print(f"      {i}. #{hashtag['hashtag']} (Engagement Score: {engagement_score:.3f})")
         
-        print(f"\n   BALANCED SOUND STRATEGY (Top 8):")
-        for i, sound in enumerate(sound_recommendations[:8], 1):
+        print(f"\n   BALANCED SOUND STRATEGY (Top ):")
+        for i, sound in enumerate(sound_recommendations[:5], 1):
             title = sound['music_title'][:50] + '...' if len(sound['music_title']) > 50 else sound['music_title']
             trend_score = sound.get('trend_score', 0)
             viral_prob = sound.get('viral_probability', 0)
@@ -1425,11 +1418,10 @@ def main():
         with open(Path(results_dir) / 'intelligent_results.pkl', 'wb') as f:
             pickle.dump(detailed_results, f)
         
-        print(f"\nIntelligent training completed successfully!")
+        print(f"\nTraining completed successfully!")
         print(f"Results saved to: {results_dir}")
         print(f"Models saved to: {models_dir}")
         print(f"Visualizations: {results_dir}/comprehensive_model_analysis.png")
-        print(f"Multiple recommendation strategies available!")
         
     except Exception as e:
         print(f"\nError during training: {e}")
