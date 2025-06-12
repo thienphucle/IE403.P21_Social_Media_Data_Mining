@@ -524,7 +524,6 @@ class ModernViralPredictor:
                 alpha=0.01
             ),
             'bayesian_ridge': BayesianRidge(
-                n_iter=300,
                 alpha_1=1e-6,
                 alpha_2=1e-6,
                 lambda_1=1e-6,
