@@ -182,7 +182,7 @@ def find_optimal_viral_threshold(df: pd.DataFrame) -> float:
     plt.title('Growth Rate Variance by Threshold')
     
     plt.tight_layout()
-    plt.savefig('finalProject/results/threshold_analysis.png', dpi=300, bbox_inches='tight')
+    plt.savefig(r'D:\UIT\DS200\IE403\IE403.P21_Social_Media_Data_Mining\finalProject\FE_results\threshold_analysis.png', dpi=300, bbox_inches='tight')
     plt.close()
     
     print(f"Optimal threshold for continuing viral classification: {best_threshold:.4f}")
@@ -324,9 +324,9 @@ def save_features(features, output_dir):
     print(f"Videos continuing to go viral: {features['metadata']['continuing_viral'].sum()}/{len(features['metadata']['continuing_viral'])}")
 
 def main():
-    infile = "final_filtered_preprocessed_data_nomissing.csv"
-    output_dir = "finalProject/data/features"
-    results_dir = "finalProject/FE_results"
+    infile = r"D:\UIT\DS200\IE403\IE403.P21_Social_Media_Data_Mining\full_recrawl_final.csv"
+    output_dir = r"D:\UIT\DS200\IE403\IE403.P21_Social_Media_Data_Mining\finalProject\data\features"
+    results_dir = r"D:\UIT\DS200\IE403\IE403.P21_Social_Media_Data_Mining\finalProject\FE_results"
 
     # Create results directory
     Path(results_dir).mkdir(parents=True, exist_ok=True)
