@@ -612,9 +612,10 @@ class ModernViralPredictor:
                     y_pred_proba = y_pred
                 
                 accuracy = accuracy_score(y_test, y_pred)
-                f1 = f1_score(y_test, y_pred, average='macro')
-                precision = precision_score(y_test, y_pred, average='macro', zero_division=0)
-                recall = recall_score(y_test, y_pred, average='macro', zero_division=0)
+                f1_macro = f1_score(y_test, y_pred, average='macro')
+                f1_micro = f1_score(y_test, y_pred, average='micro')
+                precision = precision_score(y_test, y_pred, average='weighted', zero_division=0)
+                recall = recall_score(y_test, y_pred, average='weighted', zero_division=0)
                 
                 try:
                     auc = roc_auc_score(y_test, y_pred_proba)
@@ -623,13 +624,14 @@ class ModernViralPredictor:
                 
                 model_scores[name] = {
                     'accuracy': accuracy, 
-                    'f1': f1, 
+                    'f1_macro': f1_macro,
+                    'f1_micro':  f1_micro,
                     'precision': precision,
                     'recall': recall,
                     'auc': auc
                 }
                 trained_models[name] = model
-                print(f"  {name}: Acc={accuracy:.4f}, F1={f1:.4f}, AUC={auc:.4f}")
+                print(f"  {name}: Acc={accuracy:.4f}, F1_macro={f1_macro:.4f}, F1_micro={f1_micro:.4f}, AUC={auc:.4f}")
                 
             except Exception as e:
                 print(f"  Failed to train {name}: {e}")
@@ -644,7 +646,7 @@ class ModernViralPredictor:
         
         for name, scores in model_scores.items():
             # Weight by F1 score (important for imbalanced TikTok data)
-            weight = max(0.1, scores['f1'])
+            weight = max(0.1, scores['f1_macro'])
             weights.append(weight)
             estimators.append((name, trained_models[name]))
         
@@ -662,11 +664,12 @@ class ModernViralPredictor:
         # Evaluate ensemble
         ensemble_pred = self.viral_ensemble.predict(X_test)
         ensemble_accuracy = accuracy_score(y_test, ensemble_pred)
-        ensemble_f1 = f1_score(y_test, ensemble_pred, average='macro')
-        ensemble_precision = precision_score(y_test, ensemble_pred, average='macro', zero_division=0)
-        ensemble_recall = recall_score(y_test, ensemble_pred, average='macro', zero_division=0)
+        ensemble_f1_macro = f1_score(y_test, ensemble_pred, average='macro')
+        ensemble_f1_micro = f1_score(y_test, ensemble_pred, average='micro')
+        ensemble_precision = precision_score(y_test, ensemble_pred, average='weighted', zero_division=0)
+        ensemble_recall = recall_score(y_test, ensemble_pred, average='weighted', zero_division=0)
         
-        best_model_name = max(model_scores.keys(), key=lambda x: model_scores[x]['f1'])
+        best_model_name = max(model_scores.keys(), key=lambda x: model_scores[x]['f1_macro'])
         best_model = trained_models[best_model_name]
         
         if hasattr(best_model, 'feature_importances_'):
@@ -689,7 +692,8 @@ class ModernViralPredictor:
         
         return {
             'ensemble_accuracy': ensemble_accuracy,
-            'ensemble_f1': ensemble_f1,
+            'ensemble_f1_macro': ensemble_f1_macro,
+            'ensemble_f1_micro': ensemble_f1_micro,
             'ensemble_precision': ensemble_precision,
             'ensemble_recall': ensemble_recall,
             'individual_scores': model_scores,
@@ -1283,12 +1287,12 @@ def create_comprehensive_visualizations(growth_metrics: Dict, viral_metrics: Dic
     ax2 = plt.subplot(5, 6, 2)
     if 'individual_scores' in viral_metrics:
         models = list(viral_metrics['individual_scores'].keys())
-        f1_scores = [viral_metrics['individual_scores'][m]['f1'] for m in models]
+        f1_scores = [viral_metrics['individual_scores'][m]['f1_macro'] for m in models]
         bars = ax2.bar(models, f1_scores, color=colors[:len(models)])
-        ax2.axhline(y=viral_metrics['ensemble_f1'], color='red', linestyle='--', linewidth=2,
-                   label=f'Ensemble: {viral_metrics["ensemble_f1"]:.3f}')
-        ax2.set_title('Viral Classification F1 Scores', fontsize=11, fontweight='bold')
-        ax2.set_ylabel('F1 Score')
+        ax2.axhline(y=viral_metrics['ensemble_f1_macro'], color='red', linestyle='--', linewidth=2,
+                   label=f'Ensemble: {viral_metrics["ensemble_f1_macro"]:.3f}')
+        ax2.set_title('Viral Classification F1_macro Scores', fontsize=11, fontweight='bold')
+        ax2.set_ylabel('F1_macro Score')
         ax2.legend(fontsize=8)
         plt.xticks(rotation=45, fontsize=8)
         ax2.grid(True, alpha=0.3)
@@ -1401,8 +1405,8 @@ def create_comprehensive_visualizations(growth_metrics: Dict, viral_metrics: Dic
     values = [
         growth_metrics['ensemble_r2'],
         min(growth_metrics.get('ensemble_rmse', 1) / 10, 1),  # Scale for visualization
-        viral_metrics['ensemble_f1'],
-        viral_metrics.get('ensemble_precision', viral_metrics['ensemble_f1'])
+        viral_metrics['ensemble_f1_macro'],
+        viral_metrics.get('ensemble_precision', viral_metrics['ensemble_f1_macro'])
     ]
     bars = ax19.bar(metrics, values, color=['#FF0050', '#FF0050', '#25F4EE', '#25F4EE'], alpha=0.8)
     ax19.set_title('TikTok Model Performance', fontsize=11, fontweight='bold')
@@ -1695,7 +1699,8 @@ def main():
         print(f"\nVIRAL CLASSIFICATION ENSEMBLE:")
         print(f"   - Training samples: {viral_metrics['n_samples']:,}")
         print(f"   - Ensemble Accuracy: {viral_metrics['ensemble_accuracy']:.4f}")
-        print(f"   - Ensemble F1 Score: {viral_metrics['ensemble_f1']:.4f}")
+        print(f"   - Ensemble F1_macro Score: {viral_metrics['ensemble_f1_macro']:.4f}")
+        print(f"   - Ensemble F1_micro Score: {viral_metrics['ensemble_f1_micro']:.4f}")
         if 'ensemble_precision' in viral_metrics:
             print(f"   - Ensemble Precision: {viral_metrics['ensemble_precision']:.4f}")
         if 'ensemble_recall' in viral_metrics:
@@ -1707,10 +1712,11 @@ def main():
         print(f"\n   - Individual Model Performance:")
         for model, scores in viral_metrics['individual_scores'].items():
             acc = scores['accuracy']
-            f1 = scores['f1']
+            f1_macro = scores['f1_macro']
+            f1_micro = scores['f1_micro']
             auc = scores['auc']
             precision = scores.get('precision', 'N/A')
-            print(f"      • {model:15}: Acc={acc:.4f}, F1={f1:.4f}, AUC={auc:.4f}, Prec={precision}")
+            print(f"      • {model:15}: Acc={acc:.4f}, F1_macro={f1_macro:.4f}, F1_micro={f1_micro:.4f}, AUC={auc:.4f}, Prec={precision}")
         
         if not viral_metrics['feature_importance'].empty:
             print(f"\n   Top TikTok Viral Features:")
@@ -1781,7 +1787,7 @@ def main():
             },
             'performance_summary': {
                 'growth_r2': growth_metrics['ensemble_r2'],
-                'viral_f1': viral_metrics['ensemble_f1'],
+                'viral_f1': viral_metrics['ensemble_f1_macro'],
                 'total_samples': growth_metrics['n_samples'] + viral_metrics['n_samples'],
                 'model_versions': {
                     'predictor': 'ModernViralPredictor_v2.0',

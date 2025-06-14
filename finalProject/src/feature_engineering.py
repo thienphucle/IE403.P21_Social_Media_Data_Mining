@@ -131,19 +131,23 @@ def find_optimal_viral_threshold(df: pd.DataFrame) -> float:
         continuing_viral = (growth_rates > threshold).sum()
         total_videos = len(growth_rates)
         viral_ratio = continuing_viral / total_videos
-        
-        # Calculate variance in growth rates above threshold
+
         above_threshold = growth_rates[growth_rates > threshold]
         variance = above_threshold.var() if len(above_threshold) > 0 else 0
-        
+
+        balance_penalty = abs(0.5 - viral_ratio)  
+        total_variance = max(growth_rates.var(), 1e-6) 
+
+        score = viral_ratio * balance_penalty * (1 - variance / total_variance)
+
         threshold_metrics.append({
             'threshold': threshold,
             'viral_count': continuing_viral,
             'viral_ratio': viral_ratio,
             'variance': variance,
-            'score': viral_ratio * (1 - variance / max(growth_rates.var(), 1))  # Balance ratio and consistency
+            'score': score
         })
-    
+
     # Find threshold with best score
     best_threshold = max(threshold_metrics, key=lambda x: x['score'])['threshold']
     
