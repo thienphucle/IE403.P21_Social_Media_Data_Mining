@@ -38,7 +38,7 @@ def calculate_viral_score(row):
     if row['vid_nview'] == 0 or pd.isna(row['vid_nview']):
         return 0
 
-    # 1. Engagement (40% weight - all metrics equally weighted)
+    # Engagement (40% weight - all metrics equally weighted)
     engagement_metrics = [
         row['vid_nlike'] / row['vid_nview'],
         row['vid_ncomment'] / row['vid_nview'],
@@ -48,18 +48,18 @@ def calculate_viral_score(row):
     engagement_ratio = np.mean(engagement_metrics)
     engagement_score = min(40, engagement_ratio * 10_000)
 
-    # 2. Creator Influence (20% weight)
+    # Creator Influence (20% weight)
     if row['user_nfollower'] <= 1000:  # Micro-influencers get bonus
         influence_score = min(20, (row['user_nfollower'] / 1000) * 10 + 10)
     else:
         influence_score = min(20, np.log10(row['user_nfollower']) * 5)
 
-    # 3. Content Virality (30% weight)
+    # Content Virality (30% weight)
     hashtag_count = len(row['vid_hashtags_normalized'])
     duration_score = 10 * (1 - min(1, row['vid_duration_sec'] / 60))  # Prefer shorter videos
     content_score = min(30, (hashtag_count * 5 + duration_score * 2))
 
-    # 4. Velocity & Recency (10% weight)
+    # Velocity & Recency (10% weight)
     velocity = (row['vid_nview'] / max(1, row['vid_existtime_hrs'])) / 1000
     recency_score = 5 * (1 - min(1, row['vid_existtime_hrs'] / 72))  # Fresh = better
     velocity_score = min(10, velocity + recency_score)
