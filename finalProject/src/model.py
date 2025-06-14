@@ -64,6 +64,9 @@ class ModernViralPredictor:
     """
     
     def __init__(self):
+        self.use_advanced_ts = ADVANCED_TS_AVAILABLE
+        self.use_tabpfn = TABPFN_AVAILABLE
+
         self.growth_models = self._initialize_growth_models()
         self.viral_models = self._initialize_viral_models()
         
