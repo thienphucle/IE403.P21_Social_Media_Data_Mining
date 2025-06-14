@@ -662,9 +662,9 @@ class ModernViralPredictor:
         # Evaluate ensemble
         ensemble_pred = self.viral_ensemble.predict(X_test)
         ensemble_accuracy = accuracy_score(y_test, ensemble_pred)
-        ensemble_f1 = f1_score(y_test, ensemble_pred, average='weighted')
-        ensemble_precision = precision_score(y_test, ensemble_pred, average='weighted', zero_division=0)
-        ensemble_recall = recall_score(y_test, ensemble_pred, average='weighted', zero_division=0)
+        ensemble_f1 = f1_score(y_test, ensemble_pred, average='macro')
+        ensemble_precision = precision_score(y_test, ensemble_pred, average='macro', zero_division=0)
+        ensemble_recall = recall_score(y_test, ensemble_pred, average='macro', zero_division=0)
         
         best_model_name = max(model_scores.keys(), key=lambda x: model_scores[x]['f1'])
         best_model = trained_models[best_model_name]
