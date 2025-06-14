@@ -10,7 +10,7 @@ def remove_emoji(text):
     return emoji.replace_emoji(text, '')
 
 # Load stopwords
-STOPWORDS = "finalProject/data/vietnamese-stopwords-dash.txt"
+STOPWORDS = r"D:\UIT\DS200\IE403\IE403.P21_Social_Media_Data_Mining\finalProject\data\vietnamese-stopwords-dash.txt"
 with open(STOPWORDS, "r", encoding="utf-8") as ins:
     stopwords = []
     for line in ins:
@@ -134,8 +134,8 @@ def preprocess_tiktok_data(df):
     return df_clean
 
 def main():
-    infile = "top_video_per_user.csv"
-    outfile = "finalProject/data/preprocessed_top_viral.csv"
+    infile = r"D:\UIT\DS200\IE403\IE403.P21_Social_Media_Data_Mining\full_recrawl_final.csv"
+    outfile = r"D:\UIT\DS200\IE403\IE403.P21_Social_Media_Data_Mining\full_recrawl_final.csv"
 
     print(f"Loading data from {infile}...")
     df = pd.read_csv(infile)

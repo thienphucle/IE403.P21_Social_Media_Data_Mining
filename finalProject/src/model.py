@@ -234,7 +234,7 @@ class ModernViralPredictor:
         features_dir = Path(features_dir)
         
         print("Loading dense features...")
-        with np.load(features_dir / 'dense_features.npz') as data:
+        with np.load(features_dir / 'dense_features.npz', allow_pickle= True) as data:
             tfidf_features = data['tfidf_features']
             phobert_features = data['phobert_features']
         
@@ -1248,9 +1248,9 @@ def create_comprehensive_visualizations(growth_metrics: Dict, viral_metrics: Dic
 
 def main():
     """Main execution function"""
-    features_dir = "finalProject/data/features"
-    models_dir = "finalProject/models"
-    results_dir = "finalProject/results"
+    features_dir = r"D:\UIT\DS200\IE403\IE403.P21_Social_Media_Data_Mining\finalProject\data\features"
+    models_dir = r"D:\UIT\DS200\IE403\IE403.P21_Social_Media_Data_Mining\finalProject\models"
+    results_dir = r"D:\UIT\DS200\IE403\IE403.P21_Social_Media_Data_Mining\finalProject\results"
     
     # Create directories
     Path(models_dir).mkdir(parents=True, exist_ok=True)

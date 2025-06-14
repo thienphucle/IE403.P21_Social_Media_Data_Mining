@@ -1,0 +1,10 @@
+VIRAL VIDEO IMPACT ANALYSIS - AGGREGATE METRICS
+==================================================
+
+avg_view_change: 51.58022671775876
+median_view_change: 4.7272727272727275
+avg_engagement_change: 14.379493420388716
+avg_frequency_change: 253.04592149789832
+users_with_improved_views: 315
+users_with_improved_engagement: 312
+total_users_analyzed: 597

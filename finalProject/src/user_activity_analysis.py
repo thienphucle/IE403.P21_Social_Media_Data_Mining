@@ -8,16 +8,20 @@ from datetime import timedelta
 import warnings
 warnings.filterwarnings('ignore')
 
+
+# load data va chuyen dinh dang datatime
 def load_data(preprocessed_file: str, user_videos_file: str) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """Load both preprocessed data and user videos data"""
     df_main = pd.read_csv(preprocessed_file, parse_dates=['vid_postTime', 'vid_scrapeTime'])
     df_user_videos = pd.read_csv(user_videos_file, parse_dates=['vid_postTime', 'vid_scrapeTime'])
     return df_main, df_user_videos
 
+# Chon cac vids viral voi thresold > 80 
 def identify_viral_videos(df: pd.DataFrame, viral_threshold: float = 80) -> pd.DataFrame:
     """Identify viral videos based on viral score threshold"""
     return df[df['viral_score'] >= viral_threshold].copy()
 
+# phan  tich anh huong hoat dong nguoi dung 
 def analyze_user_activity_impact(df_main: pd.DataFrame, df_user_videos: pd.DataFrame, 
                                viral_threshold: float = 80) -> Dict[str, Dict]:
     """
@@ -36,6 +40,7 @@ def analyze_user_activity_impact(df_main: pd.DataFrame, df_user_videos: pd.DataF
         # Get all videos from this user
         user_videos = df_user_videos[df_user_videos['user_name'] == user_name].copy()
         
+        # Bỏ những người dùng it hơn 5 vids 
         if len(user_videos) < 5:  # Need sufficient data
             continue
             
@@ -85,21 +90,26 @@ def calculate_period_metrics(videos: pd.DataFrame) -> Dict[str, float]:
     if len(videos) == 0:
         return {}
     
-    # Convert string numbers to float, handling potential formatting issues
+    # Fillna(0)
+    # Chuẩn hóa các số liệu 
     def safe_convert(series):
         return pd.to_numeric(series.astype(str).str.replace(',', ''), errors='coerce').fillna(0)
-    
+
     views = safe_convert(videos['vid_nview'])
     likes = safe_convert(videos['vid_nlike'])
     comments = safe_convert(videos['vid_ncomment'])
     shares = safe_convert(videos['vid_nshare'])
     saves = safe_convert(videos['vid_nsave'])
+
     
     # Calculate engagement rates
+    # Engagement Rate= (Lượt xem + Tổng tương tác) ×100
+    # Nếu views = 0 thì gán Engagement Rate = 0 
     total_engagement = likes + comments + shares + saves
     engagement_rates = np.where(views > 0, (total_engagement / views) * 100, 0)
     
     # Calculate posting frequency
+    # nếu chỉ có 1 vids thì frequency được gán = 0 
     if len(videos) > 1:
         time_span = (videos['vid_postTime'].max() - videos['vid_postTime'].min()).total_seconds() / (24 * 3600)  # days
         posting_frequency = len(videos) / max(time_span, 1)
@@ -119,7 +129,7 @@ def calculate_period_metrics(videos: pd.DataFrame) -> Dict[str, float]:
         'total_videos': len(videos),
         'posting_frequency': posting_frequency,
         'view_consistency': views.std() / max(views.mean(), 1),  # Coefficient of variation
-        'engagement_consistency': np.std(engagement_rates) / max(np.mean(engagement_rates), 1)
+        'engagement_consistency': np.std(engagement_rates) / max(np.mean(engagement_rates), 1) 
     }
 
 def analyze_temporal_patterns(videos: pd.DataFrame, viral_time: pd.Timestamp, period: str) -> Dict[str, float]:
@@ -130,6 +140,7 @@ def analyze_temporal_patterns(videos: pd.DataFrame, viral_time: pd.Timestamp, pe
     videos = videos.copy()
     
     # Calculate time differences from viral video
+    # khoảng cách thời gian giữa vids đầu và vids sau so vói thoi gian viral  theo ngày 
     if period == 'before':
         videos['days_to_viral'] = (viral_time - videos['vid_postTime']).dt.total_seconds() / (24 * 3600)
     else:  # after
@@ -141,10 +152,12 @@ def analyze_temporal_patterns(videos: pd.DataFrame, viral_time: pd.Timestamp, pe
     # Analyze performance trends
     if len(videos) > 2:
         # Calculate correlation between time and performance
+        # Càng gần viral_time: view cao hơn 
         time_col = 'days_to_viral' if period == 'before' else 'days_from_viral'
         time_correlation = np.corrcoef(videos[time_col], views)[0, 1] if not np.isnan(views).all() else 0
         
         # Calculate performance momentum (trend)
+        # Lấy 3 vids mới nhất và 3 vids cũ nhất 
         if len(videos) >= 3:
             recent_videos = videos.nlargest(3, 'vid_postTime') if period == 'after' else videos.nsmallest(3, 'vid_postTime')
             older_videos = videos.nsmallest(3, 'vid_postTime') if period == 'after' else videos.nlargest(3, 'vid_postTime')
@@ -152,6 +165,7 @@ def analyze_temporal_patterns(videos: pd.DataFrame, viral_time: pd.Timestamp, pe
             recent_avg = pd.to_numeric(recent_videos['vid_nview'].astype(str).str.replace(',', ''), errors='coerce').mean()
             older_avg = pd.to_numeric(older_videos['vid_nview'].astype(str).str.replace(',', ''), errors='coerce').mean()
             
+            # mức độ tăng trưởng view 
             momentum = (recent_avg - older_avg) / max(older_avg, 1) * 100
         else:
             momentum = 0
@@ -370,24 +384,35 @@ def create_impact_visualizations(analysis_results: Dict, aggregate_metrics: Dict
             success_rates.append(1 if view_improvement else 0)
     
     if follower_counts:
-        # Bin by follower count
-        bins = np.logspace(np.log10(max(min(follower_counts), 1)), np.log10(max(follower_counts)), 5)
-        digitized = np.digitize(follower_counts, bins)
-        
+        min_f, max_f = min(follower_counts), max(follower_counts)
+
+        if min_f == max_f:
+            bins = [min_f - 1, min_f + 1]  # Tạo 1 bin duy nhất đủ bao hết giá trị
+        else:
+            bins = np.logspace(np.log10(min_f), np.log10(max_f), 5)
+
+        digitized = np.digitize(follower_counts, bins, right=True)
+
         bin_success_rates = []
         bin_labels = []
+
         for i in range(1, len(bins)):
-            mask = digitized == i
-            if np.any(mask):
-                success_rate = np.mean([success_rates[j] for j in range(len(success_rates)) if mask[j]])
+            indices = [j for j, d in enumerate(digitized) if d == i]
+            if indices:
+                success_rate = np.mean([success_rates[j] for j in indices])
                 bin_success_rates.append(success_rate)
                 bin_labels.append(f'{int(bins[i-1])}-{int(bins[i])}')
-        
-        plt.bar(range(len(bin_success_rates)), bin_success_rates, alpha=0.7)
-        plt.xticks(range(len(bin_labels)), bin_labels, rotation=45)
-        plt.ylabel('Success Rate')
-        plt.xlabel('Follower Count Range')
-        plt.title('Success Rate by Follower Count')
+
+        if bin_success_rates:
+            plt.bar(range(len(bin_success_rates)), bin_success_rates, alpha=0.7)
+            plt.xticks(range(len(bin_labels)), bin_labels, rotation=45)
+            plt.ylabel('Success Rate')
+            plt.xlabel('Follower Count Range')
+            plt.title('Success Rate by Follower Count')
+        else:
+            plt.text(0.5, 0.5, 'No data available for bins', ha='center', va='center')
+            plt.axis('off')
+
     
     # 7. Temporal Patterns
     plt.subplot(3, 4, 7)
@@ -548,9 +573,9 @@ def save_detailed_results(analysis_results: Dict, aggregate_metrics: Dict, outpu
 
 def main():
     # File paths
-    preprocessed_file = "finalProject/data/preprocessed_data.csv"
-    user_videos_file = "finalProject/data/videos_baby_eyin.csv"  # This should be the combined user videos file
-    output_dir = "finalProject/analysis_results"
+    preprocessed_file = r"D:\UIT\DS200\IE403\IE403.P21_Social_Media_Data_Mining\finalProject\results\filtered_user.csv"
+    user_videos_file = r"D:\UIT\DS200\IE403\IE403.P21_Social_Media_Data_Mining\full_recrawl_final.csv"  # This should be the combined user videos file
+    output_dir = r"D:\UIT\DS200\IE403\IE403.P21_Social_Media_Data_Mining\finalProject\analysis_results"
     
     # Create output directory
     Path(output_dir).mkdir(parents=True, exist_ok=True)

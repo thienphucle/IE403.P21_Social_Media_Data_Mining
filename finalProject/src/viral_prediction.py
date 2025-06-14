@@ -427,9 +427,9 @@ def create_visualizations(growth_metrics: Dict, viral_metrics: Dict, output_dir:
     plt.close()
 
 def main():
-    features_dir = "finalProject/data/features"
-    models_dir = "finalProject/models"
-    results_dir = "finalProject/model_results"
+    features_dir = r"D:\UIT\DS200\IE403\IE403.P21_Social_Media_Data_Mining\finalProject\data\features"
+    models_dir = r"D:\UIT\DS200\IE403\IE403.P21_Social_Media_Data_Mining\finalProject\models"
+    results_dir = r"D:\UIT\DS200\IE403\IE403.P21_Social_Media_Data_Mining\finalProject\model_results"
     
     # Create directories
     Path(models_dir).mkdir(parents=True, exist_ok=True)
