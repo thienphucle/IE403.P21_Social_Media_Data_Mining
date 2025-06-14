@@ -433,25 +433,69 @@ def create_impact_visualizations(analysis_results: Dict, aggregate_metrics: Dict
     plt.ylabel('Performance Momentum After')
     plt.title('Performance Momentum Changes')
     
+    """
     # 8. Summary Statistics
     plt.subplot(3, 4, 8)
     plt.axis('off')
-    summary_text = f"""
-    VIRAL VIDEO IMPACT SUMMARY
-    
-    Total Users Analyzed: {aggregate_metrics.get('total_users_analyzed', 0)}
-    
-    Average View Change: {aggregate_metrics.get('avg_view_change', 0):.1f}%
-    Users with Improved Views: {aggregate_metrics.get('users_with_improved_views', 0)}
-    
-    Average Engagement Change: {aggregate_metrics.get('avg_engagement_change', 0):.1f}%
-    Users with Improved Engagement: {aggregate_metrics.get('users_with_improved_engagement', 0)}
-    
-    Average Frequency Change: {aggregate_metrics.get('avg_frequency_change', 0):.1f}%
-    """
-    plt.text(0.1, 0.9, summary_text, transform=plt.gca().transAxes, 
-             fontsize=10, verticalalignment='top', fontfamily='monospace')
-    
+
+    summary_lines = [
+        "VIRAL VIDEO IMPACT SUMMARY",
+        "",
+        f"Total Users Analyzed: {aggregate_metrics.get('total_users_analyzed', 0)}",
+        f"Average View Change: {aggregate_metrics.get('avg_view_change', 0):.1f}%",
+        f"Users with Improved Views: {aggregate_metrics.get('users_with_improved_views', 0)}",
+        f"Average Engagement Change: {aggregate_metrics.get('avg_engagement_change', 0):.1f}%",
+        f"Users with Improved Engagement: {aggregate_metrics.get('users_with_improved_engagement', 0)}",
+        f"Average Frequency Change: {aggregate_metrics.get('avg_frequency_change', 0):.1f}%"
+    ]
+    summary_text = "\n".join(summary_lines)
+
+    plt.text(0.05, 0.95, summary_text,
+         transform=plt.gca().transAxes,
+         fontsize=12, fontweight='bold', va='top', fontfamily='monospace')
+    """ 
+
+    # Subplot 8: Summary bar chart + text
+    plt.subplot(3, 4, 8)
+
+    # Dữ liệu
+    metrics = ['View Change', 'Engagement', 'Frequency']
+    values = [
+        aggregate_metrics.get('avg_view_change', 0),
+        aggregate_metrics.get('avg_engagement_change', 0),
+        aggregate_metrics.get('avg_frequency_change', 0)
+    ]
+    colors = ['skyblue', 'salmon', 'lightgreen']
+
+    # Vẽ bar chart
+    bars = plt.bar(metrics, values, color=colors)
+
+    # Ghi giá trị trên đầu cột
+    for bar in bars:
+        height = bar.get_height()
+        plt.text(bar.get_x() + bar.get_width()/2., height + 2,
+             f'{height:.1f}%', ha='center', va='bottom', fontsize=9)
+
+    #   Thêm thông tin tổng hợp trong biểu đồ (góc dưới hoặc trái)
+    text_summary = (
+        f"Total Users: {aggregate_metrics.get('total_users_analyzed', 0)}\n"
+        f"↑ Views: {aggregate_metrics.get('users_with_improved_views', 0)}\n"
+        f"↑ Engagement: {aggregate_metrics.get('users_with_improved_engagement', 0)}"
+    )
+
+    # Vị trí text: bạn có thể thay đổi x và y cho phù hợp
+    plt.text(-0.4, max(values) * 0.6, text_summary,
+         fontsize=9, fontfamily='monospace',
+         bbox=dict(facecolor='white', alpha=0.6, boxstyle='round,pad=0.4'))
+
+    # Cài đặt trục
+    plt.title("VIRAL IMPACT SUMMARY", fontsize=11)
+    plt.ylabel("Change (%)")
+    plt.ylim(0, max(values) * 1.3)
+
+
+
+ 
     # 9-12. Individual User Case Studies (top 4 performers)
     top_performers = sorted(analysis_results.items(), 
                            key=lambda x: x[1]['impact_metrics'].get('view_change_pct', 0), 
