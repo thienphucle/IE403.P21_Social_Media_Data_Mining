@@ -612,9 +612,9 @@ class ModernViralPredictor:
                     y_pred_proba = y_pred
                 
                 accuracy = accuracy_score(y_test, y_pred)
-                f1 = f1_score(y_test, y_pred, average='weighted')
-                precision = precision_score(y_test, y_pred, average='weighted', zero_division=0)
-                recall = recall_score(y_test, y_pred, average='weighted', zero_division=0)
+                f1 = f1_score(y_test, y_pred, average='macro')
+                precision = precision_score(y_test, y_pred, average='macro', zero_division=0)
+                recall = recall_score(y_test, y_pred, average='macro', zero_division=0)
                 
                 try:
                     auc = roc_auc_score(y_test, y_pred_proba)
