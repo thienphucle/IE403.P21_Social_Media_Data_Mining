@@ -4,6 +4,8 @@ from pathlib import Path
 import pickle
 import warnings
 from typing import Dict, List, Tuple, Any
+import matplotlib
+matplotlib.use('Agg') 
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.model_selection import train_test_split, cross_val_score, GridSearchCV
