@@ -5,7 +5,8 @@ import pickle
 import warnings
 from typing import Dict, List, Tuple, Any
 import matplotlib
-matplotlib.use('Agg') 
+matplotlib.use('TkAgg')
+import matplotlib.pyplot as plt
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.model_selection import train_test_split, cross_val_score, GridSearchCV
@@ -45,7 +46,6 @@ try:
 except ImportError:
     TABPFN_AVAILABLE = False
     print("TabPFN not available. Using fallback models.")
-
 warnings.filterwarnings('ignore')
 
 class ModernViralPredictor:
@@ -1490,10 +1490,8 @@ def create_comprehensive_visualizations(growth_metrics: Dict, viral_metrics: Dic
         # Normalize popularity for plotting
         popularity_norm = np.array(popularity) / max(popularity) if max(popularity) > 0 else np.zeros_like(popularity)
         
-        ax24.plot(x, viral_probs, 'o-', color='#FF0050', linewidth=3, markersize=8, 
-                 label='Viral Probability', alpha=0.8)
-        ax24.plot(x, popularity_norm, 's-', color='#25F4EE', linewidth=3, markersize=8, 
-                 label='Popularity (norm)', alpha=0.8)
+        ax24.plot(x, viral_probs, 'o-', color='#FF0050', linewidth=3, markersize=8, label='Viral Probability', alpha=0.8)
+        ax24.plot(x, popularity_norm, 's-', color='#25F4EE', linewidth=3, markersize=8,label='Popularity (norm)', alpha=0.8)
         
         ax24.set_title('TikTok Trend Evolution', fontsize=11, fontweight='bold')
         ax24.set_xlabel('Recommendation Rank')
@@ -1591,8 +1589,7 @@ def create_comprehensive_visualizations(growth_metrics: Dict, viral_metrics: Dic
     trend_predictions = [100, 85, 70, 60]  # Declining trend example
     confidence_bands = [10, 15, 20, 25]  # Increasing uncertainty
     
-    ax30.plot(time_periods, trend_predictions, 'o-', linewidth=3, markersize=8, 
-             color='#FF0050', label='Predicted Trend')
+    ax30.plot(time_periods, trend_predictions, 'o-', linewidth=3, markersize=8, color='#FF0050', label='Predicted Trend')
     ax30.fill_between(time_periods, 
                      [p - c for p, c in zip(trend_predictions, confidence_bands)],
                      [p + c for p, c in zip(trend_predictions, confidence_bands)],
